@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steam 礼物区域检测器</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="icons/icon48.png" alt="Logo" class="logo">
+            <h3>Steam 礼物区域检测器</h3>
+        </div>
+        
+        <div class="content">
+            <div class="country-group">
+                <label class="label">
+                    <span class="label-icon">📤</span>
+                    您的国家 (发送方):
+                </label>
+                <select id="senderCountry" class="country-select"></select>
+            </div>
+            
+            <div class="country-group">
+                <label class="label">
+                    <span class="label-icon">📥</span>
+                    接收方国家:
+                </label>
+                <select id="recipientCountry" class="country-select"></select>
+            </div>
+            
+            <button id="checkBtn" class="check-button">
+                <span>🔍</span> 检测当前页面
+            </button>
+            
+            <!-- 可关闭的错误提示容器 -->
+            <div id="errorContainer" class="error-container" style="display: none;">
+                <div class="error-content">
+                    <span class="error-icon">⚠️</span>
+                    <span id="errorMessage" class="error-message"></span>
+                    <button id="closeErrorBtn" class="close-error-btn">✕</button>
+                </div>
+            </div>
+            
+            <div id="result" class="result" style="display: none;"></div>
+        </div>
+        
+        <div class="footer">
+            <span class="version">v1.0.0</span>
+        </div>
+    </div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>
