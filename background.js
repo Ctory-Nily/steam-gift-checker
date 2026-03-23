@@ -1,41 +1,79 @@
-// 后台服务 - 发起纯净的 Steam API 请求（不携带 Cookie）
+// 后台服务 - background.js
 
-// 货币代码到国家代码的映射
-function getCountryCode(currencyCode) {
-    const map = {
-        'USD': 'us', 'RUB': 'ru', 'UAH': 'ua',
-        'EUR': 'eu', 'GBP': 'gb', 'CNY': 'cn',
-        'JPY': 'jp', 'KRW': 'kr', 'BRL': 'br',
-        'CAD': 'ca', 'AUD': 'au', 'INR': 'in',
-        'CHF': 'ch', 'PLN': 'pl', 'NOK': 'no',
-        'IDR': 'id', 'MYR': 'my', 'PHP': 'ph',
-        'SGD': 'sg', 'THB': 'th', 'VND': 'vn',
-        'TRY': 'tr', 'MXN': 'mx', 'NZD': 'nz',
-        'CLP': 'cl', 'PEN': 'pe', 'COP': 'co',
-        'ZAR': 'za', 'HKD': 'hk', 'TWD': 'tw',
-        'SAR': 'sa', 'AED': 'ae', 'ARS': 'ar',
-        'ILS': 'il', 'KZT': 'kz', 'KWD': 'kw',
-        'QAR': 'qa', 'CRC': 'cr', 'UYU': 'uy'
-    };
-    return map[currencyCode] || currencyCode.toLowerCase();
+// ========== 国家/货币配置表 ==========
+const countryConfig = {
+    // 标准国家（有独立货币）
+    'cn': { currencyCode: 'CNY', currencyName: '中国', symbol: '¥', steamCC: 'cn' },
+    'ua': { currencyCode: 'UAH', currencyName: '乌克兰', symbol: '₴', steamCC: 'ua' },
+    'vn': { currencyCode: 'VND', currencyName: '越南', symbol: '₫', steamCC: 'vn' },
+    'id': { currencyCode: 'IDR', currencyName: '印度尼西亚', symbol: 'Rp', steamCC: 'id' },
+    'ph': { currencyCode: 'PHP', currencyName: '菲律宾', symbol: '₱', steamCC: 'ph' },
+    'in': { currencyCode: 'INR', currencyName: '印度', symbol: '₹', steamCC: 'in' },
+    'br': { currencyCode: 'BRL', currencyName: '巴西', symbol: 'R$', steamCC: 'br' },
+    'ru': { currencyCode: 'RUB', currencyName: '俄罗斯', symbol: '₽', steamCC: 'ru' },
+    'kr': { currencyCode: 'KRW', currencyName: '韩国', symbol: '₩', steamCC: 'kr' },
+    'cl': { currencyCode: 'CLP', currencyName: '智利', symbol: 'CLP$', steamCC: 'cl' },
+    'tw': { currencyCode: 'TWD', currencyName: '台湾', symbol: 'NT$', steamCC: 'tw' },
+    'hk': { currencyCode: 'HKD', currencyName: '香港', symbol: 'HK$', steamCC: 'hk' },
+    'kz': { currencyCode: 'KZT', currencyName: '哈萨克斯坦', symbol: '₸', steamCC: 'kz' },
+    'pe': { currencyCode: 'PEN', currencyName: '秘鲁', symbol: 'S/.', steamCC: 'pe' },
+    'th': { currencyCode: 'THB', currencyName: '泰国', symbol: '฿', steamCC: 'th' },
+    'jp': { currencyCode: 'JPY', currencyName: '日本', symbol: '¥', steamCC: 'jp' },
+    'mx': { currencyCode: 'MXN', currencyName: '墨西哥', symbol: 'Mex$', steamCC: 'mx' },
+    'co': { currencyCode: 'COP', currencyName: '哥伦比亚', symbol: 'COL$', steamCC: 'co' },
+    'uy': { currencyCode: 'UYU', currencyName: '乌拉圭', symbol: '$U', steamCC: 'uy' },
+    'my': { currencyCode: 'MYR', currencyName: '马来西亚', symbol: 'RM', steamCC: 'my' },
+    'sg': { currencyCode: 'SGD', currencyName: '新加坡', symbol: 'S$', steamCC: 'sg' },
+    'za': { currencyCode: 'ZAR', currencyName: '南非', symbol: 'R', steamCC: 'za' },
+    'nz': { currencyCode: 'NZD', currencyName: '新西兰', symbol: 'NZ$', steamCC: 'nz' },
+    'ca': { currencyCode: 'CAD', currencyName: '加拿大', symbol: 'CDN$', steamCC: 'ca' },
+    'kw': { currencyCode: 'KWD', currencyName: '科威特', symbol: 'KD', steamCC: 'kw' },
+    'sa': { currencyCode: 'SAR', currencyName: '沙特', symbol: 'SR', steamCC: 'sa' },
+    'us': { currencyCode: 'USD', currencyName: '美国', symbol: '$', steamCC: 'us' },
+    'au': { currencyCode: 'AUD', currencyName: '澳大利亚', symbol: 'A$', steamCC: 'au' },
+    'cr': { currencyCode: 'CRC', currencyName: '哥斯达黎加', symbol: '₡', steamCC: 'cr' },
+    'qa': { currencyCode: 'QAR', currencyName: '卡塔尔', symbol: 'QR', steamCC: 'qa' },
+    'ae': { currencyCode: 'AED', currencyName: '阿联酋', symbol: 'AED', steamCC: 'ae' },
+    'pl': { currencyCode: 'PLN', currencyName: '波兰', symbol: 'zł', steamCC: 'pl' },
+    'eu': { currencyCode: 'EUR', currencyName: '欧元区', symbol: '€', steamCC: 'eu' },
+    'no': { currencyCode: 'NOK', currencyName: '挪威', symbol: 'kr', steamCC: 'no' },
+    'uk': { currencyCode: 'GBP', currencyName: '英国', symbol: '£', steamCC: 'uk' },
+    'il': { currencyCode: 'ILS', currencyName: '以色列', symbol: '₪', steamCC: 'il' },
+    'ch': { currencyCode: 'CHF', currencyName: '瑞士', symbol: 'CHF', steamCC: 'ch' },
+    
+    // 使用 USD 的区域组（使用各自的 Steam CC）
+    'ar': { currencyCode: 'USD', currencyName: '阿根廷', symbol: '$', steamCC: 'ar', regionGroup: 'LATAM' },
+    'tr': { currencyCode: 'USD', currencyName: '土耳其', symbol: '$', steamCC: 'tr', regionGroup: 'MENA' },
+    'az': { currencyCode: 'USD', currencyName: '阿塞拜疆', symbol: '$', steamCC: 'az', regionGroup: 'CIS' },
+    'pk': { currencyCode: 'USD', currencyName: '南亚 (巴基斯坦)', symbol: '$', steamCC: 'pk', regionGroup: 'ASIA' },
+};
+
+// 获取所有国家列表（用于下拉框，key 使用 steamCC）
+function getAllCountries() {
+    const countries = [];
+    for (const [steamCC, config] of Object.entries(countryConfig)) {
+        countries.push({
+            key: steamCC,
+            code: config.currencyCode,
+            steamCC: steamCC,
+            name: config.currencyName,
+            symbol: config.symbol,
+            regionGroup: config.regionGroup || null
+        });
+    }
+    return countries;
 }
 
-// 监听来自 content script 的消息
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'fetchSteamPrice') {
-        fetchSteamPrice(request.appId, request.currencyCode)
-            .then(result => sendResponse({ success: true, ...result }))
-            .catch(error => sendResponse({ success: false, error: error.message }));
-        return true;
-    }
-});
+// 根据 Steam CC 获取货币代码
+function getCurrencyCode(steamCC) {
+    return countryConfig[steamCC]?.currencyCode || 'USD';
+}
 
-// 发起纯净的 Steam API 请求（不携带 Cookie）
-async function fetchSteamPrice(appId, currencyCode) {
-    const countryCode = getCountryCode(currencyCode);
-    const url = `https://store.steampowered.com/api/appdetails?appids=${appId}&cc=${countryCode}&l=english`;
+// 发起 Steam API 请求
+async function fetchSteamPrice(appId, steamCC) {
+    const url = `https://store.steampowered.com/api/appdetails?appids=${appId}&cc=${steamCC}&l=english`;
     
-    console.log(`[Background] 请求 ${currencyCode} (${countryCode}) 价格: ${url}`);
+    console.log(`[Background] 请求 ${steamCC}: ${url}`);
     
     try {
         const response = await fetch(url, {
@@ -55,7 +93,7 @@ async function fetchSteamPrice(appId, currencyCode) {
         const data = await response.json();
         
         if (!data[appId] || !data[appId].success) {
-            console.warn(`[Background] 游戏 ${appId} 在 ${currencyCode} 地区可能未上架`);
+            console.warn(`[Background] 游戏 ${appId} 在 ${steamCC} 地区可能未上架`);
             return { price: null, currency: null, rawData: null };
         }
         
@@ -64,30 +102,45 @@ async function fetchSteamPrice(appId, currencyCode) {
         if (gameData.price_overview) {
             const price = gameData.price_overview.final / 100;
             const currency = gameData.price_overview.currency;
-            console.log(`[Background] 成功获取 ${currencyCode} 价格: ${price} ${currency}`);
+            console.log(`[Background] 成功获取 ${steamCC} 价格: ${price} ${currency}`);
             return {
                 price: price,
                 currency: currency,
-                rawData: gameData.price_overview  // 返回原始价格数据
+                rawData: gameData.price_overview
             };
         } else if (gameData.is_free) {
-            console.log(`[Background] 游戏在 ${currencyCode} 地区是免费的`);
+            console.log(`[Background] 游戏在 ${steamCC} 地区是免费的`);
             return {
                 price: 0,
-                currency: currencyCode,
+                currency: getCurrencyCode(steamCC),
                 rawData: { is_free: true }
             };
         } else {
-            console.warn(`[Background] 游戏在 ${currencyCode} 地区没有价格信息`);
+            console.warn(`[Background] 游戏在 ${steamCC} 地区没有价格信息`);
             return { price: null, currency: null, rawData: null };
         }
     } catch (error) {
-        console.error(`[Background] 获取 ${currencyCode} 价格失败:`, error.message);
+        console.error(`[Background] 获取 ${steamCC} 价格失败:`, error.message);
         throw error;
     }
 }
 
-// 汇率更新定时器
+// 监听消息
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'fetchSteamPrice') {
+        fetchSteamPrice(request.appId, request.steamCC)
+            .then(result => sendResponse({ success: true, ...result }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+        return true;
+    }
+    
+    if (request.action === 'getAllCountries') {
+        sendResponse({ success: true, countries: getAllCountries() });
+        return true;
+    }
+});
+
+// 汇率更新
 let updateInterval = null;
 
 async function updateExchangeRates() {
@@ -98,11 +151,20 @@ async function updateExchangeRates() {
         const data = await response.json();
         
         if (data.success) {
+            const neededCurrencies = [...new Set(Object.values(countryConfig).map(c => c.currencyCode))];
+            const filteredRates = {};
+            for (const currency of neededCurrencies) {
+                if (data.data.rates[currency]) {
+                    filteredRates[currency] = data.data.rates[currency];
+                }
+            }
+            
             await chrome.storage.local.set({ 
-                exchangeRates: data.data.rates,
+                exchangeRates: filteredRates,
+                allCountries: getAllCountries(),
                 lastUpdate: Date.now()
             });
-            console.log('[Background] 汇率更新成功');
+            console.log('[Background] 汇率更新成功，共', Object.keys(filteredRates).length, '种货币');
         }
     } catch (error) {
         console.error('[Background] 汇率更新失败:', error);

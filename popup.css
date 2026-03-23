@@ -5,7 +5,7 @@
 }
 
 body {
-    width: 380px;
+    width: 420px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', Roboto, sans-serif;
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
     color: #eee;
@@ -38,7 +38,7 @@ body {
 }
 
 .country-group {
-    margin-bottom: 20px;
+    margin-bottom: 12px;
 }
 
 .label {
@@ -55,32 +55,122 @@ body {
     font-size: 16px;
 }
 
-/* 下拉选项样式 */
-.country-select {
+.search-wrapper {
+    position: relative;
     width: 100%;
-    padding: 10px 12px;
+    margin-bottom: 8px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 12px;
     background: #2d2d3a;
     border: 1px solid rgba(255,255,255,0.2);
     border-radius: 8px;
     color: #ffffff;
-    font-size: 14px;
-    cursor: pointer;
+    font-size: 13px;
     transition: all 0.3s ease;
+    box-sizing: border-box;
 }
 
-.country-select option {
-    background: #2d2d3a;
-    color: #ffffff;
-    padding: 8px;
-}
-
-.country-select:focus {
+.search-input:focus {
     outline: none;
     border-color: #667eea;
     box-shadow: 0 0 0 2px rgba(102,126,234,0.2);
 }
 
-/* 可关闭的错误提示容器 */
+.search-input::placeholder {
+    color: #888;
+}
+
+.country-select {
+    width: 100%;
+    padding: 8px;
+    background: #2d2d3a;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 13px;
+    cursor: pointer;
+    height: auto;
+    min-height: 200px;
+    max-height: 240px;
+}
+
+.country-select option {
+    background: #2d2d3a;
+    color: #ffffff;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.country-select option:hover {
+    background: #3d3d4a;
+}
+
+.country-select option:checked {
+    background: #667eea;
+    color: white;
+}
+
+.swap-button-wrapper {
+    display: flex;
+    justify-content: center;
+    margin: 12px 0;
+}
+
+.swap-button {
+    background: rgba(102,126,234,0.3);
+    border: 1px solid rgba(102,126,234,0.5);
+    border-radius: 20px;
+    padding: 6px 20px;
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.swap-button:hover {
+    background: rgba(102,126,234,0.5);
+    transform: scale(1.02);
+}
+
+.swap-button:active {
+    transform: scale(0.98);
+}
+
+.check-button {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.check-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102,126,234,0.4);
+}
+
+.check-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.check-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .error-container {
     margin-top: 16px;
     margin-bottom: 16px;
@@ -148,37 +238,6 @@ body {
     transform: scale(0.95);
 }
 
-.check-button {
-    width: 100%;
-    padding: 12px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: none;
-    border-radius: 8px;
-    color: white;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.check-button:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(102,126,234,0.4);
-}
-
-.check-button:active:not(:disabled) {
-    transform: translateY(0);
-}
-
-.check-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
 .result {
     margin-top: 16px;
     padding: 12px;
@@ -210,97 +269,4 @@ body {
     justify-content: center;
     font-size: 11px;
     color: #888;
-}
-
-/* 高亮匹配的选项 */
-.country-select option.highlight {
-    background: #667eea;
-    color: white;
-}
-
-/* 搜索框样式 - 独立显示，不显示选中值 */
-.search-wrapper {
-    position: relative;
-    width: 100%;
-    margin-bottom: 8px;
-}
-
-.search-input {
-    width: 100%;
-    padding: 8px 12px;
-    background: #2d2d3a;
-    border: 1px solid rgba(255,255,255,0.2);
-    border-radius: 8px;
-    color: #ffffff;
-    font-size: 13px;
-    transition: all 0.3s ease;
-    box-sizing: border-box;
-}
-
-.search-input:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 2px rgba(102,126,234,0.2);
-}
-
-.search-input::placeholder {
-    color: #888;
-}
-
-/* 下拉框样式 - 增大高度显示更多选项 */
-.country-select {
-    width: 100%;
-    padding: 8px;
-    background: #2d2d3a;
-    border: 1px solid rgba(255,255,255,0.2);
-    border-radius: 8px;
-    color: #ffffff;
-    font-size: 13px;
-    cursor: pointer;
-    height: auto;
-    min-height: 200px;
-    max-height: 240px;
-}
-
-.country-select option {
-    background: #2d2d3a;
-    color: #ffffff;
-    padding: 8px 12px;
-    cursor: pointer;
-}
-
-.country-select option:hover {
-    background: #3d3d4a;
-}
-
-.country-select option:checked {
-    background: #667eea;
-    color: white;
-}
-
-/* 对调按钮样式 */
-.swap-button-wrapper {
-    display: flex;
-    justify-content: center;
-    margin: 12px 0;
-}
-
-.swap-button {
-    background: rgba(102,126,234,0.3);
-    border: 1px solid rgba(102,126,234,0.5);
-    border-radius: 20px;
-    padding: 6px 20px;
-    color: #fff;
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.swap-button:hover {
-    background: rgba(102,126,234,0.5);
-    transform: scale(1.02);
-}
-
-.swap-button:active {
-    transform: scale(0.98);
 }
