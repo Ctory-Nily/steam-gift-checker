@@ -211,3 +211,96 @@ body {
     font-size: 11px;
     color: #888;
 }
+
+/* 高亮匹配的选项 */
+.country-select option.highlight {
+    background: #667eea;
+    color: white;
+}
+
+/* 搜索框样式 - 独立显示，不显示选中值 */
+.search-wrapper {
+    position: relative;
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 12px;
+    background: #2d2d3a;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 13px;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102,126,234,0.2);
+}
+
+.search-input::placeholder {
+    color: #888;
+}
+
+/* 下拉框样式 - 增大高度显示更多选项 */
+.country-select {
+    width: 100%;
+    padding: 8px;
+    background: #2d2d3a;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 13px;
+    cursor: pointer;
+    height: auto;
+    min-height: 200px;
+    max-height: 240px;
+}
+
+.country-select option {
+    background: #2d2d3a;
+    color: #ffffff;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.country-select option:hover {
+    background: #3d3d4a;
+}
+
+.country-select option:checked {
+    background: #667eea;
+    color: white;
+}
+
+/* 对调按钮样式 */
+.swap-button-wrapper {
+    display: flex;
+    justify-content: center;
+    margin: 12px 0;
+}
+
+.swap-button {
+    background: rgba(102,126,234,0.3);
+    border: 1px solid rgba(102,126,234,0.5);
+    border-radius: 20px;
+    padding: 6px 20px;
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.swap-button:hover {
+    background: rgba(102,126,234,0.5);
+    transform: scale(1.02);
+}
+
+.swap-button:active {
+    transform: scale(0.98);
+}

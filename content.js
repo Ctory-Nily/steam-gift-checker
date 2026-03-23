@@ -8,162 +8,115 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 });
 
-// 获取当前页面的App ID
-function getAppId() {
-    const match = window.location.pathname.match(/\/app\/(\d+)/);
-    return match ? match[1] : null;
+// 获取当前页面的类型和ID - 支持多种 URL 格式
+function getPageInfo() {
+    const url = window.location.pathname;
+    
+    // 检测捆绑包 (bundle) - 支持 /bundle/62019/ 和 /bundle/62019/_/ 等格式
+    const bundleMatch = url.match(/\/bundle\/(\d+)(?:\/|$)/);
+    if (bundleMatch) {
+        return { type: 'bundle', id: bundleMatch[1], error: '捆绑包暂不支持检测' };
+    }
+    
+    // 检测组合包 (sub) - 支持 /sub/1010505/ 和 /sub/1010505/_/ 等格式
+    const subMatch = url.match(/\/sub\/(\d+)(?:\/|$)/);
+    if (subMatch) {
+        return { type: 'sub', id: subMatch[1], error: '组合包暂不支持检测' };
+    }
+    
+    // 检测游戏 (app) - 支持 /app/2436940/ 和 /app/2436940/xxx/ 等格式
+    const appMatch = url.match(/\/app\/(\d+)(?:\/|$)/);
+    if (appMatch) {
+        return { type: 'app', id: appMatch[1], error: null };
+    }
+    
+    return { type: 'unknown', id: null, error: '不支持的页面类型' };
 }
 
 // 验证是否在有效的Steam游戏页面
 function isValidSteamPage() {
-    const url = window.location.href;
-    if (!url.includes('store.steampowered.com')) {
-        return false;
-    }
-    const appId = getAppId();
-    if (!appId) {
-        return false;
-    }
-    return true;
+    const pageInfo = getPageInfo();
+    return pageInfo.type === 'app';
 }
 
-// 从SteamDB获取指定国家的价格
-async function fetchPriceFromSteamDB(appId, currencyCode) {
-    const steamDbUrl = `https://steamdb.info/app/${appId}/`;
-    
-    // 使用多个代理服务，提高成功率
-    const proxies = [
-        `https://api.allorigins.win/get?url=${encodeURIComponent(steamDbUrl)}`,
-        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(steamDbUrl)}`
-    ];
-    
-    for (const proxy of proxies) {
-        try {
-            console.log(`尝试通过代理获取 ${currencyCode} 价格: ${proxy}`);
-            const response = await fetch(proxy);
-            
-            if (!response.ok) {
-                console.warn(`代理返回 HTTP ${response.status}`);
-                continue;
+// 通过 background 获取指定国家的价格（返回完整数据）
+async function fetchPriceFromSteamAPI(appId, currencyCode) {
+    return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({
+            action: 'fetchSteamPrice',
+            appId: appId,
+            currencyCode: currencyCode
+        }, (response) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
             }
             
-            const data = await response.json();
-            const html = data.contents || data;
-            
-            if (!html || html.includes('403') || html.includes('Access Denied')) {
-                console.warn('代理返回被拒绝');
-                continue;
+            if (response && response.success) {
+                resolve({
+                    price: response.price,
+                    currency: response.currency,
+                    rawData: response.rawData
+                });
+            } else {
+                reject(new Error(response?.error || '获取价格失败'));
             }
-            
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            
-            const price = extractPriceByCurrencyFromSteamDB(doc, currencyCode);
-            if (price !== null) {
-                console.log(`成功获取 ${currencyCode} 价格: ${price}`);
-                return price;
-            }
-        } catch (error) {
-            console.warn(`代理请求失败:`, error.message);
-        }
-    }
-    
-    console.error(`无法获取 ${currencyCode} 的价格`);
-    return null;
+        });
+    });
 }
 
-// 从SteamDB HTML中提取指定货币的价格
-function extractPriceByCurrencyFromSteamDB(doc, currencyCode) {
-    // SteamDB 的价格表格结构
-    // 通常: 国家名称 | 货币代码 | 价格 | 折扣
-    const rows = doc.querySelectorAll('table tbody tr');
-    
-    for (const row of rows) {
-        const cells = row.querySelectorAll('td');
-        if (cells.length >= 3) {
-            // 第二列是货币代码
-            const currencyCell = cells[1];
-            const currencyText = currencyCell ? currencyCell.textContent.trim() : '';
-            
-            // 精确匹配货币代码
-            if (currencyText === currencyCode) {
-                // 第三列是价格
-                const priceCell = cells[2];
-                if (priceCell) {
-                    const priceText = priceCell.textContent.trim();
-                    console.log(`找到 ${currencyCode} 价格单元格: "${priceText}"`);
-                    
-                    // 提取数字
-                    const priceMatch = priceText.match(/(\d{1,3}(?:[,\s]\d{3})*(?:\.\d{1,2})?)/);
-                    if (priceMatch) {
-                        const price = parseFloat(priceMatch[1].replace(/[,\s]/g, ''));
-                        if (!isNaN(price) && price > 0) {
-                            return price;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    // 如果精确匹配失败，尝试模糊匹配（行文本包含货币代码）
-    for (const row of rows) {
-        const rowText = row.textContent;
-        if (rowText.includes(currencyCode)) {
-            const price = findPriceInRow(row);
-            if (price !== null) {
-                console.log(`通过模糊匹配找到 ${currencyCode} 价格: ${price}`);
-                return price;
-            }
-        }
-    }
-    
-    return null;
-}
-
-// 在表格行中查找价格
-function findPriceInRow(row) {
-    const cells = row.querySelectorAll('td');
-    
-    for (const cell of cells) {
-        const cellText = cell.textContent.trim();
-        // 匹配价格数字
-        const priceMatch = cellText.match(/(\d{1,3}(?:[,\s]\d{3})*(?:\.\d{1,2})?)/);
-        if (priceMatch) {
-            const price = parseFloat(priceMatch[1].replace(/[,\s]/g, ''));
-            if (!isNaN(price) && price > 0 && price < 100000) {
-                return price;
-            }
-        }
-    }
-    
-    return null;
-}
-
-// 获取两个国家的价格（仅使用 SteamDB）
+// 获取两个国家的价格
 async function fetchBothPrices(appId, senderCode, recipientCode) {
-    console.log(`从 SteamDB 获取 ${senderCode} 和 ${recipientCode} 的价格...`);
+    console.log(`通过 Background 获取 ${senderCode} 和 ${recipientCode} 的价格...`);
     
-    // 并行获取两个国家的价格
-    const [senderPrice, recipientPrice] = await Promise.all([
-        fetchPriceFromSteamDB(appId, senderCode),
-        fetchPriceFromSteamDB(appId, recipientCode)
+    const [senderResult, recipientResult] = await Promise.all([
+        fetchPriceFromSteamAPI(appId, senderCode),
+        fetchPriceFromSteamAPI(appId, recipientCode)
     ]);
     
-    if (senderPrice === null) {
-        throw new Error(`无法获取 ${senderCode} 的价格，该游戏可能在俄罗斯地区未上架`);
+    if (senderResult.price === null) {
+        throw new Error(`无法获取 ${senderCode} 的价格\n\n可能原因：
+1. 该游戏在发送方地区未上架
+2. 网络连接问题
+3. 请稍后重试`);
     }
     
-    if (recipientPrice === null) {
-        throw new Error(`无法获取 ${recipientCode} 的价格，该游戏可能在乌克兰地区未上架`);
+    if (recipientResult.price === null) {
+        throw new Error(`无法获取 ${recipientCode} 的价格\n\n可能原因：
+1. 该游戏在接收方地区未上架
+2. 网络连接问题
+3. 请稍后重试`);
     }
     
-    console.log(`成功获取价格: ${senderCode}=${senderPrice}, ${recipientCode}=${recipientPrice}`);
+    console.log(`成功获取价格: ${senderCode}=${senderResult.price}, ${recipientCode}=${recipientResult.price}`);
     
-    return { senderPrice, recipientPrice, source: 'SteamDB' };
+    return {
+        senderPrice: senderResult.price,
+        recipientPrice: recipientResult.price,
+        senderCurrency: senderResult.currency,
+        recipientCurrency: recipientResult.currency,
+        senderRawData: senderResult.rawData,
+        recipientRawData: recipientResult.rawData,
+        source: 'Steam 官方接口'
+    };
 }
 
-// 主要检查逻辑
+// 计算价格差异百分比（以发送方货币为基准）
+// 公式: (接收方价格换算成发送方货币 - 发送方实际价格) / 发送方实际价格 × 100%
+function calculatePriceDifference(senderPrice, recipientPrice, senderRate, recipientRate) {
+    // 将接收方价格换算成发送方货币
+    const convertedRecipientToSender = recipientPrice * senderRate / recipientRate;
+    // 计算差异百分比（以发送方实际价格为基准）
+    const difference = convertedRecipientToSender - senderPrice;
+    const percentage = (difference / senderPrice) * 100;
+    return {
+        percentage: percentage,
+        convertedRecipientToSender: convertedRecipientToSender,
+        isAcceptable: Math.abs(percentage) <= 15
+    };
+}
+
+// 主要检查逻辑 - 只保留15%价格差异检查
 async function checkGiftability(params) {
     const { senderCode, recipientCode, senderRate, recipientRate } = params;
     
@@ -171,49 +124,79 @@ async function checkGiftability(params) {
     console.log(`发送方: ${senderCode}, 汇率: ${senderRate}`);
     console.log(`接收方: ${recipientCode}, 汇率: ${recipientRate}`);
     
-    // 验证页面
-    if (!isValidSteamPage()) {
-        throw new Error('请确保当前在有效的 Steam 游戏页面');
+    // 验证页面类型
+    const pageInfo = getPageInfo();
+    if (pageInfo.error) {
+        throw new Error(pageInfo.error);
     }
     
-    const appId = getAppId();
+    if (pageInfo.type !== 'app') {
+        throw new Error('当前页面不是游戏单品页面，请进入游戏页面后重试');
+    }
+    
+    const appId = pageInfo.id;
     console.log(`游戏 ID: ${appId}`);
     
-    // 从 SteamDB 获取价格
-    const { senderPrice, recipientPrice, source } = await fetchBothPrices(appId, senderCode, recipientCode);
+    // 获取两个国家的价格
+    const {
+        senderPrice, recipientPrice,
+        senderCurrency, recipientCurrency,
+        source
+    } = await fetchBothPrices(appId, senderCode, recipientCode);
     
+    console.log(`发送方价格: ${senderPrice} ${senderCurrency}`);
+    console.log(`接收方价格: ${recipientPrice} ${recipientCurrency}`);
+    
+    // ========== 价格差异检查（15% 限制）- 唯一检查方式 ==========
+    const priceDiff = calculatePriceDifference(senderPrice, recipientPrice, senderRate, recipientRate);
+    
+    // 最终判断：价格差异不超过 15%
+    const canGift = priceDiff.isAcceptable;
+    
+    console.log('=== 价格差异检查 (15% 限制) ===');
     console.log(`发送方价格: ${senderPrice} ${senderCode}`);
-    console.log(`接收方价格: ${recipientPrice} ${recipientCode}`);
+    console.log(`接收方价格换算成发送方货币: ${priceDiff.convertedRecipientToSender.toFixed(2)} ${senderCode}`);
+    console.log(`价格差异: ${priceDiff.percentage > 0 ? '+' : ''}${priceDiff.percentage.toFixed(2)}%`);
+    console.log(`结果: ${priceDiff.isAcceptable ? '✅ 可以赠送 (差异 ≤15%)' : `❌ 无法赠送 (差异 ${Math.abs(priceDiff.percentage).toFixed(2)}% > 15%)`}`);
     
-    // 计算公式: 发送国价格 × 1.15 × 接收国汇率 / 发送国汇率
-    const calculated = senderPrice * 1.15 * recipientRate / senderRate;
+    console.log('=== 最终结果 ===');
+    console.log(`可以赠送: ${canGift ? '✅ 是' : '❌ 否'}`);
     
-    // 按照你的原始逻辑: 计算结果 > 实际价格 = 可以赠送
-    const canGift = calculated > recipientPrice;
-    const difference = calculated - recipientPrice;
-    
-    console.log('=== 计算结果 ===');
-    console.log(`数据来源: ${source}`);
-    console.log(`计算: ${senderPrice} × 1.15 × ${recipientRate} / ${senderRate} = ${calculated.toFixed(2)} ${recipientCode}`);
-    console.log(`实际价格: ${recipientPrice} ${recipientCode}`);
-    console.log(`差额: ${difference > 0 ? '+' : ''}${difference.toFixed(2)} ${recipientCode}`);
-    console.log(`结果: ${canGift ? '✅ 可以赠送 (计算结果 > 实际价格)' : '❌ 无法赠送 (计算结果 < 实际价格)'}`);
+    // 生成详细的结果说明
+    let failReason = '';
+    if (!priceDiff.isAcceptable) {
+        const absPercent = Math.abs(priceDiff.percentage).toFixed(2);
+        failReason = `价格差异检查不通过：两地价格差异 ${absPercent}% > 15%，差价过大`;
+    }
     
     return {
         canGift: canGift,
-        calculated: calculated,
-        actualPrice: recipientPrice,
         senderPrice: senderPrice,
-        difference: difference,
-        source: source
+        recipientPrice: recipientPrice,
+        source: source,
+        // 价格差异相关
+        isPriceDiffAcceptable: priceDiff.isAcceptable,
+        priceDiffPercent: priceDiff.percentage,
+        convertedRecipientToSender: priceDiff.convertedRecipientToSender,
+        failReason: failReason,
+        // 原始价格数据
+        senderCurrency: senderCurrency,
+        recipientCurrency: recipientCurrency,
+        rawSenderPrice: senderPrice,
+        rawRecipientPrice: recipientPrice,
+        appId: appId,
+        pageType: pageInfo.type
     };
 }
 
 // 初始化
 function init() {
     console.log('Steam Gift Checker 已加载');
-    if (isValidSteamPage()) {
-        console.log('有效的 Steam 游戏页面, App ID:', getAppId());
+    const pageInfo = getPageInfo();
+    if (pageInfo.type === 'app') {
+        console.log('有效的 Steam 游戏页面, App ID:', pageInfo.id);
+    } else if (pageInfo.error) {
+        console.log(pageInfo.error);
     }
 }
 

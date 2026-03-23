@@ -22,15 +22,13 @@
   "background": {
     "service_worker": "background.js"
   },
-  
   "content_scripts": [
     {
-      "matches": ["https://store.steampowered.com/app/*"],
+      "matches": ["https://store.steampowered.com/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
   ],
-  
   "permissions": [
     "storage",
     "activeTab"
@@ -38,15 +36,6 @@
   
   "host_permissions": [
     "https://api.steaminventoryhelper.com/*",
-    "https://steamdb.info/*",
-    "https://store.steampowered.com/*",
-    "https://api.allorigins.win/*"
-  ],
-  
-  "web_accessible_resources": [
-    {
-      "resources": ["utils/*", "lib/*"],
-      "matches": ["https://store.steampowered.com/*"]
-    }
+    "https://store.steampowered.com/api/*"
   ]
 }

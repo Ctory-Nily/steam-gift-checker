@@ -19,7 +19,14 @@
                     <span class="label-icon">📤</span>
                     您的国家 (发送方):
                 </label>
-                <select id="senderCountry" class="country-select"></select>
+                <div class="search-wrapper">
+                    <input type="text" id="senderSearch" class="search-input" placeholder="🔍 搜索国家..." autocomplete="off">
+                    <select id="senderCountry" class="country-select" size="8"></select>
+                </div>
+            </div>
+            
+            <div class="swap-button-wrapper">
+                <button id="swapBtn" class="swap-button">⇅ 对调国家</button>
             </div>
             
             <div class="country-group">
@@ -27,7 +34,10 @@
                     <span class="label-icon">📥</span>
                     接收方国家:
                 </label>
-                <select id="recipientCountry" class="country-select"></select>
+                <div class="search-wrapper">
+                    <input type="text" id="recipientSearch" class="search-input" placeholder="🔍 搜索国家..." autocomplete="off">
+                    <select id="recipientCountry" class="country-select" size="8"></select>
+                </div>
             </div>
             
             <button id="checkBtn" class="check-button">
