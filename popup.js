@@ -3,12 +3,22 @@
 // 全局变量
 let exchangeRates = {};
 let allCountries = [];
+let senderFilterTerm = '';
+let recipientFilterTerm = '';
 
 // ========== 辅助函数 ==========
 
-function showError(message) {
+function showError(message, isSuccess = false) {
     const errorContainer = document.getElementById('errorContainer');
     const errorMessage = document.getElementById('errorMessage');
+    
+    if (isSuccess) {
+        errorContainer.style.background = 'rgba(74, 222, 128, 0.95)';
+        errorContainer.style.borderLeftColor = '#4ade80';
+    } else {
+        errorContainer.style.background = 'rgba(220, 53, 69, 0.95)';
+        errorContainer.style.borderLeftColor = '#ff6b6b';
+    }
     
     errorMessage.textContent = message;
     errorContainer.style.display = 'block';
@@ -17,8 +27,10 @@ function showError(message) {
     setTimeout(() => {
         if (errorContainer.style.display === 'block') {
             errorContainer.style.display = 'none';
+            errorContainer.style.background = '';
+            errorContainer.style.borderLeftColor = '';
         }
-    }, 5000);
+    }, 3000);
 }
 
 function hideError() {
@@ -114,11 +126,10 @@ function updateStatusDisplay() {
     }
 }
 
-// 根据 steamCC 获取国家名称（支持大小写）
+// 根据 steamCC 获取国家名称
 function getCountryNameBySteamCC(steamCC) {
     if (!steamCC) return '未知';
-    const countryLower = steamCC.toLowerCase();
-    const country = allCountries.find(c => c.key === countryLower);
+    const country = allCountries.find(c => c.key === steamCC);
     return country ? country.name : steamCC.toUpperCase();
 }
 
@@ -150,39 +161,22 @@ async function getCurrentSteamCountry(refresh = false) {
     });
 }
 
-// 刷新并显示当前国家，同时更新发送方下拉框
+// 刷新并显示当前国家
 async function refreshCurrentCountry() {
     document.getElementById('currentCountryText').textContent = '获取中...';
     const currentCountry = await getCurrentSteamCountry(true);
     
     if (currentCountry) {
-        // 转换为小写进行匹配
-        const countryLower = currentCountry.toLowerCase();
-        const countryExists = allCountries.some(c => c.key === countryLower);
+        const countryName = getCountryNameBySteamCC(currentCountry);
+        document.getElementById('currentCountryText').textContent = `${countryName} (${currentCountry.toUpperCase()})`;
         
+        const countryExists = allCountries.some(c => c.key === currentCountry);
         if (countryExists) {
-            const countryInfo = allCountries.find(c => c.key === countryLower);
-            const countryName = countryInfo ? countryInfo.name : countryLower.toUpperCase();
-            document.getElementById('currentCountryText').textContent = `${countryName} (${countryLower.toUpperCase()})`;
-            
-            // 自动将发送方下拉框设置为当前国家
-            document.getElementById('senderCountry').value = countryLower;
+            document.getElementById('senderCountry').value = currentCountry;
             updateStatusDisplay();
             saveCountries();
-            console.log(`自动将发送方设置为当前国家: ${countryLower}`);
-            
-            // 显示成功提示
-            const successMsg = `已将赠送方设置为 ${countryName} (${countryLower.toUpperCase()})`;
-            showError(successMsg);
-            // 2秒后自动隐藏成功提示（因为是成功提示，可以短一些）
-            setTimeout(() => {
-                const errorContainer = document.getElementById('errorContainer');
-                if (errorContainer.style.display === 'block' && errorContainer.innerText.includes(successMsg)) {
-                    errorContainer.style.display = 'none';
-                }
-            }, 5000);
+            showError(`已将发送方设置为 ${countryName} (${currentCountry.toUpperCase()})`, true);
         } else {
-            // 国家不在支持列表中
             document.getElementById('currentCountryText').textContent = `${currentCountry.toUpperCase()} (不支持)`;
             showError(`当前地区 ${currentCountry.toUpperCase()} 不在支持列表中，请手动选择发送方国家`);
         }
@@ -205,67 +199,117 @@ function filterCountries(searchTerm) {
     );
 }
 
-function updateSingleSelect(selectElement, filteredCountries, currentValue) {
-    const selectedValue = currentValue !== undefined ? currentValue : selectElement.value;
+// 渲染下拉框 - 根据搜索词过滤
+function renderSelect(selectElement, filterTerm) {
+    const filtered = filterCountries(filterTerm);
+    const currentValue = selectElement.value;
     
     selectElement.innerHTML = '';
     
-    for (const country of filteredCountries) {
+    for (const country of filtered) {
         const displayName = `${country.name} (${country.code})`;
         const option = new Option(displayName, country.key);
         selectElement.add(option);
     }
     
-    if (filteredCountries.some(c => c.key === selectedValue)) {
-        selectElement.value = selectedValue;
-    } else if (filteredCountries.length > 0 && !selectedValue) {
-        selectElement.value = filteredCountries[0].key;
+    // 如果当前选中的值在过滤后的列表中，保持选中
+    if (filtered.some(c => c.key === currentValue)) {
+        selectElement.value = currentValue;
+    } else if (filtered.length > 0) {
+        // 否则选中第一个
+        selectElement.value = filtered[0].key;
     }
+    
     updateStatusDisplay();
 }
 
+// 更新发送方下拉框
 function updateSenderSelect() {
-    const searchTerm = getSearchKeyword(document.getElementById('senderSearch'));
-    const filtered = filterCountries(searchTerm);
+    const searchInput = document.getElementById('senderSearch');
+    senderFilterTerm = searchInput.value;
     const senderSelect = document.getElementById('senderCountry');
-    const currentValue = senderSelect.value;
-    updateSingleSelect(senderSelect, filtered, currentValue);
+    renderSelect(senderSelect, senderFilterTerm);
 }
 
+// 更新接收方下拉框
 function updateRecipientSelect() {
-    const searchTerm = getSearchKeyword(document.getElementById('recipientSearch'));
-    const filtered = filterCountries(searchTerm);
+    const searchInput = document.getElementById('recipientSearch');
+    recipientFilterTerm = searchInput.value;
     const recipientSelect = document.getElementById('recipientCountry');
-    const currentValue = recipientSelect.value;
-    updateSingleSelect(recipientSelect, filtered, currentValue);
+    renderSelect(recipientSelect, recipientFilterTerm);
 }
 
+// 初始化下拉框（显示全部）
 function populateCountrySelects() {
     const sortedCountries = [...allCountries].sort((a, b) => a.name.localeCompare(b.name));
     allCountries = sortedCountries;
-    updateSenderSelect();
-    updateRecipientSelect();
-}
-
-function swapCountries() {
+    
+    // 清空搜索框
+    document.getElementById('senderSearch').value = '';
+    document.getElementById('recipientSearch').value = '';
+    senderFilterTerm = '';
+    recipientFilterTerm = '';
+    
+    // 渲染下拉框
     const senderSelect = document.getElementById('senderCountry');
     const recipientSelect = document.getElementById('recipientCountry');
+    renderSelect(senderSelect, '');
+    renderSelect(recipientSelect, '');
+}
+
+// 对调国家 - 修复版
+function swapCountries() {
+    console.log('=== 对调国家开始 ===');
     
+    const senderSelect = document.getElementById('senderCountry');
+    const recipientSelect = document.getElementById('recipientCountry');
+    const senderSearch = document.getElementById('senderSearch');
+    const recipientSearch = document.getElementById('recipientSearch');
+    
+    // 获取当前选中的值
     const senderValue = senderSelect.value;
     const recipientValue = recipientSelect.value;
     
-    if (senderValue && recipientValue) {
-        senderSelect.value = recipientValue;
-        recipientSelect.value = senderValue;
-        
-        document.getElementById('senderSearch').value = '';
-        document.getElementById('recipientSearch').value = '';
-        
-        updateSenderSelect();
-        updateRecipientSelect();
-        saveCountries();
-        hideResultInStatusArea();
+    console.log(`对调前 - 发送方: ${senderValue}, 接收方: ${recipientValue}`);
+    
+    if (!senderValue || !recipientValue) {
+        showError('请先选择发送方和接收方国家');
+        return;
     }
+    
+    // 保存当前搜索词
+    const senderSearchTerm = senderSearch.value;
+    const recipientSearchTerm = recipientSearch.value;
+    
+    // 交换搜索词
+    senderSearch.value = recipientSearchTerm;
+    recipientSearch.value = senderSearchTerm;
+    senderFilterTerm = recipientSearchTerm;
+    recipientFilterTerm = senderSearchTerm;
+    
+    // 重新渲染下拉框（应用交换后的搜索词）
+    renderSelect(senderSelect, senderFilterTerm);
+    renderSelect(recipientSelect, recipientFilterTerm);
+    
+    // 交换选中的值
+    senderSelect.value = recipientValue;
+    recipientSelect.value = senderValue;
+    
+    // 验证设置是否成功
+    console.log(`对调后 - 发送方: ${senderSelect.value}, 接收方: ${recipientSelect.value}`);
+    
+    // 保存设置
+    saveCountries();
+    
+    // 隐藏检测结果
+    hideResultInStatusArea();
+    
+    // 显示成功提示
+    const senderCountry = allCountries.find(c => c.key === senderSelect.value);
+    const recipientCountry = allCountries.find(c => c.key === recipientSelect.value);
+    // showError(`已对调: ${senderCountry?.name} ↔ ${recipientCountry?.name}`, true);
+    
+    console.log('=== 对调国家结束 ===');
 }
 
 function getCountryConfigBySteamCC(steamCC) {
@@ -330,7 +374,7 @@ async function loadCountries() {
         exchangeRates = rates;
         
         allCountries = countries.map(c => ({
-            key: c.key,           // key 是小写，如 'ua'
+            key: c.key,
             code: c.code,
             name: c.name,
             symbol: c.symbol
@@ -348,19 +392,11 @@ async function loadCountries() {
         if (!savedSender) {
             const currentCountry = await getCurrentSteamCountry(false);
             if (currentCountry) {
-                // 转换为小写进行匹配
-                const countryLower = currentCountry.toLowerCase();
-                const countryExists = allCountries.some(c => c.key === countryLower);
+                const countryExists = allCountries.some(c => c.key === currentCountry);
                 if (countryExists) {
-                    document.getElementById('senderCountry').value = countryLower;
-                    console.log(`自动选择当前 Steam 国家作为发送方: ${countryLower}`);
+                    document.getElementById('senderCountry').value = currentCountry;
+                    console.log(`自动选择当前 Steam 国家作为发送方: ${currentCountry}`);
                     saveCountries();
-                } else {
-                    console.log(`当前国家 ${currentCountry} 不在支持列表中`);
-                    // 默认选择美国
-                    if (allCountries.some(c => c.key === 'us')) {
-                        document.getElementById('senderCountry').value = 'us';
-                    }
                 }
             }
         } else {
@@ -380,8 +416,12 @@ async function loadCountries() {
 // ========== 检测逻辑 ==========
 
 document.getElementById('checkBtn').addEventListener('click', async () => {
+    console.log('=== 检测按钮被点击 ===');
+    
     const senderSteamCC = document.getElementById('senderCountry').value;
     const recipientSteamCC = document.getElementById('recipientCountry').value;
+    
+    console.log(`发送方: ${senderSteamCC}, 接收方: ${recipientSteamCC}`);
     
     if (!senderSteamCC || !recipientSteamCC) {
         showError('请选择发送方国家和接收方国家');
@@ -394,17 +434,26 @@ document.getElementById('checkBtn').addEventListener('click', async () => {
     const senderRate = exchangeRates[senderConfig.currencyCode];
     const recipientRate = exchangeRates[recipientConfig.currencyCode];
     
+    console.log(`发送方汇率 (${senderConfig.currencyCode}): ${senderRate}`);
+    console.log(`接收方汇率 (${recipientConfig.currencyCode}): ${recipientRate}`);
+    
     if (!senderRate || !recipientRate) {
-        showError('无效的国家选择，请重新选择');
+        showError(`无效的国家选择: ${senderConfig.currencyCode} 或 ${recipientConfig.currencyCode}`);
         return;
     }
     
     saveCountries();
     
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    console.log(`当前标签页: ${tab.url}`);
     
     if (!tab.url.includes('store.steampowered.com/')) {
         showError('请先访问 Steam 页面');
+        return;
+    }
+    
+    if (tab.url.includes('/bundle/') || tab.url.includes('/sub/')) {
+        showError('捆绑包和组合包暂不支持检测，请进入游戏单品页面');
         return;
     }
     
@@ -414,6 +463,8 @@ document.getElementById('checkBtn').addEventListener('click', async () => {
         hideLoading();
         showError('请求超时，请检查网络连接后重试');
     }, 30000);
+    
+    console.log('发送消息到 content script...');
     
     chrome.tabs.sendMessage(tab.id, {
         action: 'checkGift',
@@ -425,7 +476,10 @@ document.getElementById('checkBtn').addEventListener('click', async () => {
         clearTimeout(timeoutId);
         hideLoading();
         
+        console.log('收到响应:', response);
+        
         if (chrome.runtime.lastError) {
+            console.error('发送消息失败:', chrome.runtime.lastError);
             showError('无法连接到页面，请刷新页面后重试');
             return;
         }
@@ -450,14 +504,16 @@ document.getElementById('refreshCountryBtn').addEventListener('click', () => {
     refreshCurrentCountry();
 });
 
-// 监听下拉框变化更新状态显示
+// 监听下拉框变化
 document.getElementById('senderCountry').addEventListener('change', () => {
     updateStatusDisplay();
     hideResultInStatusArea();
+    saveCountries();
 });
 document.getElementById('recipientCountry').addEventListener('change', () => {
     updateStatusDisplay();
     hideResultInStatusArea();
+    saveCountries();
 });
 
 // 页面加载时初始化
