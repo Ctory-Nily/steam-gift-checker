@@ -291,7 +291,7 @@ document.getElementById('checkBtn').addEventListener('click', async () => {
                         <div style="font-weight: bold; margin-bottom: 6px;">🌍 区域价格差异检查 (≤15% 限制)</div>
                         <div style="font-size: 11px; font-family: monospace;">
                             接收方价格换算成发送方货币:<br>
-                            ${response.rawRecipientPrice} ${recipientCode} × ${recipientRate.toFixed(4)} / ${senderRate.toFixed(4)}<br>
+                            ${response.rawRecipientPrice} ${recipientCode} × ${senderRate.toFixed(4)} / ${recipientRate.toFixed(4)}<br>
                             = ${response.convertedRecipientToSender.toFixed(2)} ${senderCode}
                         </div>
                         <div style="font-size: 12px; margin-top: 4px;">
