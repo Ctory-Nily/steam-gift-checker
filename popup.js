@@ -13,6 +13,12 @@ function showError(message) {
     errorMessage.textContent = message;
     errorContainer.style.display = 'block';
     errorContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    
+    setTimeout(() => {
+        if (errorContainer.style.display === 'block') {
+            errorContainer.style.display = 'none';
+        }
+    }, 5000);
 }
 
 function hideError() {
@@ -20,11 +26,33 @@ function hideError() {
     errorContainer.style.display = 'none';
 }
 
-function showResult(html) {
-    const resultDiv = document.getElementById('result');
-    resultDiv.style.display = 'block';
-    resultDiv.innerHTML = html;
-    hideError();
+// 在状态区域显示检测结果
+function showResultInStatusArea(canGift, response, senderSteamCC, recipientSteamCC, senderRate, recipientRate) {
+    const resultArea = document.getElementById('resultArea');
+    const resultContent = document.getElementById('resultContent');
+    
+    const statusClass = canGift ? 'success' : 'error';
+    const statusText = canGift ? '✅ 可以赠送！' : '❌ 不可以赠送';
+    const priceDiffPercent = response.priceDiffPercent;
+    const diffSymbol = priceDiffPercent > 0 ? '+' : '';
+    
+    resultContent.innerHTML = `
+        <div class="result-status ${statusClass}">${statusText}</div>
+        ${response.failReason ? `<div style="font-size: 11px; color: #f87171; margin-bottom: 8px;">⚠️ ${response.failReason}</div>` : ''}
+        <div class="result-detail">
+            <div class="result-detail-row">📊 价格差异: <span style="color: ${Math.abs(priceDiffPercent) > 15 ? '#f87171' : '#4ade80'}">${diffSymbol}${priceDiffPercent.toFixed(2)}%</span> ${Math.abs(priceDiffPercent) > 15 ? '(超过15%限制)' : '(符合要求)'}</div>
+            <div class="result-detail-row">💰 发送方价格: ${response.rawSenderPrice} ${senderSteamCC}</div>
+            <div class="result-detail-row">💰 接收方价格: ${response.rawRecipientPrice} ${recipientSteamCC}</div>
+            <div class="result-detail-row">🔄 换算后: ${response.rawRecipientPrice} × ${senderRate.toFixed(4)} / ${recipientRate.toFixed(4)} = ${response.convertedRecipientToSender.toFixed(2)} ${senderSteamCC}</div>
+        </div>
+    `;
+    
+    resultArea.style.display = 'block';
+}
+
+function hideResultInStatusArea() {
+    const resultArea = document.getElementById('resultArea');
+    resultArea.style.display = 'none';
 }
 
 function showLoading() {
@@ -32,6 +60,7 @@ function showLoading() {
     btn.disabled = true;
     btn.innerHTML = '<span>⏳</span> 检测中...';
     hideError();
+    hideResultInStatusArea();
 }
 
 function hideLoading() {
@@ -48,6 +77,7 @@ function saveCountries() {
             senderCountry: sender, 
             recipientCountry: recipient
         });
+        updateStatusDisplay();
     }
 }
 
@@ -59,7 +89,107 @@ function loadSavedCountries() {
         if (result.recipientCountry) {
             document.getElementById('recipientCountry').value = result.recipientCountry;
         }
+        updateStatusDisplay();
     });
+}
+
+// 更新状态显示区域
+function updateStatusDisplay() {
+    const senderSteamCC = document.getElementById('senderCountry').value;
+    const recipientSteamCC = document.getElementById('recipientCountry').value;
+    
+    const senderCountry = allCountries.find(c => c.key === senderSteamCC);
+    const recipientCountry = allCountries.find(c => c.key === recipientSteamCC);
+    
+    if (senderCountry) {
+        document.getElementById('senderDisplay').textContent = `${senderCountry.name} (${senderCountry.code})`;
+    } else {
+        document.getElementById('senderDisplay').textContent = '未选择';
+    }
+    
+    if (recipientCountry) {
+        document.getElementById('recipientDisplay').textContent = `${recipientCountry.name} (${recipientCountry.code})`;
+    } else {
+        document.getElementById('recipientDisplay').textContent = '未选择';
+    }
+}
+
+// 根据 steamCC 获取国家名称（支持大小写）
+function getCountryNameBySteamCC(steamCC) {
+    if (!steamCC) return '未知';
+    const countryLower = steamCC.toLowerCase();
+    const country = allCountries.find(c => c.key === countryLower);
+    return country ? country.name : steamCC.toUpperCase();
+}
+
+// 从 content script 获取当前 Steam 国家
+async function getCurrentSteamCountry(refresh = false) {
+    return new Promise((resolve) => {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs.length === 0) {
+                resolve(null);
+                return;
+            }
+            
+            const action = refresh ? 'refreshCountry' : 'getCurrentCountry';
+            
+            chrome.tabs.sendMessage(tabs[0].id, { action: action }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.log('无法获取当前国家');
+                    resolve(null);
+                    return;
+                }
+                
+                if (response && response.success && response.countryCode) {
+                    resolve(response.countryCode);
+                } else {
+                    resolve(null);
+                }
+            });
+        });
+    });
+}
+
+// 刷新并显示当前国家，同时更新发送方下拉框
+async function refreshCurrentCountry() {
+    document.getElementById('currentCountryText').textContent = '获取中...';
+    const currentCountry = await getCurrentSteamCountry(true);
+    
+    if (currentCountry) {
+        // 转换为小写进行匹配
+        const countryLower = currentCountry.toLowerCase();
+        const countryExists = allCountries.some(c => c.key === countryLower);
+        
+        if (countryExists) {
+            const countryInfo = allCountries.find(c => c.key === countryLower);
+            const countryName = countryInfo ? countryInfo.name : countryLower.toUpperCase();
+            document.getElementById('currentCountryText').textContent = `${countryName} (${countryLower.toUpperCase()})`;
+            
+            // 自动将发送方下拉框设置为当前国家
+            document.getElementById('senderCountry').value = countryLower;
+            updateStatusDisplay();
+            saveCountries();
+            console.log(`自动将发送方设置为当前国家: ${countryLower}`);
+            
+            // 显示成功提示
+            const successMsg = `已将赠送方设置为 ${countryName} (${countryLower.toUpperCase()})`;
+            showError(successMsg);
+            // 2秒后自动隐藏成功提示（因为是成功提示，可以短一些）
+            setTimeout(() => {
+                const errorContainer = document.getElementById('errorContainer');
+                if (errorContainer.style.display === 'block' && errorContainer.innerText.includes(successMsg)) {
+                    errorContainer.style.display = 'none';
+                }
+            }, 5000);
+        } else {
+            // 国家不在支持列表中
+            document.getElementById('currentCountryText').textContent = `${currentCountry.toUpperCase()} (不支持)`;
+            showError(`当前地区 ${currentCountry.toUpperCase()} 不在支持列表中，请手动选择发送方国家`);
+        }
+    } else {
+        document.getElementById('currentCountryText').textContent = '无法获取，请刷新页面';
+        showError('无法获取当前地区，请确保在 Steam 商店页面');
+    }
 }
 
 function getSearchKeyword(inputElement) {
@@ -68,9 +198,10 @@ function getSearchKeyword(inputElement) {
 
 function filterCountries(searchTerm) {
     if (!searchTerm) return allCountries;
+    const term = searchTerm.toLowerCase();
     return allCountries.filter(c => 
-        c.name.toLowerCase().includes(searchTerm) || 
-        c.code.toLowerCase().includes(searchTerm)
+        c.name.toLowerCase().includes(term) || 
+        c.code.toLowerCase().includes(term)
     );
 }
 
@@ -80,10 +211,7 @@ function updateSingleSelect(selectElement, filteredCountries, currentValue) {
     selectElement.innerHTML = '';
     
     for (const country of filteredCountries) {
-        let displayName = country.name;
-        if (country.regionGroup) {
-            displayName = `${country.name} [${country.regionGroup}]`;
-        }
+        const displayName = `${country.name} (${country.code})`;
         const option = new Option(displayName, country.key);
         selectElement.add(option);
     }
@@ -93,6 +221,7 @@ function updateSingleSelect(selectElement, filteredCountries, currentValue) {
     } else if (filteredCountries.length > 0 && !selectedValue) {
         selectElement.value = filteredCountries[0].key;
     }
+    updateStatusDisplay();
 }
 
 function updateSenderSelect() {
@@ -135,6 +264,7 @@ function swapCountries() {
         updateSenderSelect();
         updateRecipientSelect();
         saveCountries();
+        hideResultInStatusArea();
     }
 }
 
@@ -200,15 +330,45 @@ async function loadCountries() {
         exchangeRates = rates;
         
         allCountries = countries.map(c => ({
-            key: c.key,
+            key: c.key,           // key 是小写，如 'ua'
             code: c.code,
             name: c.name,
-            symbol: c.symbol,
-            regionGroup: c.regionGroup
+            symbol: c.symbol
         }));
         
         populateCountrySelects();
-        loadSavedCountries();
+        
+        // 先尝试加载保存的国家
+        const savedSender = await new Promise((resolve) => {
+            chrome.storage.local.get(['senderCountry'], (result) => {
+                resolve(result.senderCountry);
+            });
+        });
+        
+        if (!savedSender) {
+            const currentCountry = await getCurrentSteamCountry(false);
+            if (currentCountry) {
+                // 转换为小写进行匹配
+                const countryLower = currentCountry.toLowerCase();
+                const countryExists = allCountries.some(c => c.key === countryLower);
+                if (countryExists) {
+                    document.getElementById('senderCountry').value = countryLower;
+                    console.log(`自动选择当前 Steam 国家作为发送方: ${countryLower}`);
+                    saveCountries();
+                } else {
+                    console.log(`当前国家 ${currentCountry} 不在支持列表中`);
+                    // 默认选择美国
+                    if (allCountries.some(c => c.key === 'us')) {
+                        document.getElementById('senderCountry').value = 'us';
+                    }
+                }
+            }
+        } else {
+            loadSavedCountries();
+        }
+        
+        // 显示当前国家
+        await refreshCurrentCountry();
         
         console.log('国家列表加载完成，共', allCountries.length, '个国家');
     } catch (error) {
@@ -272,60 +432,10 @@ document.getElementById('checkBtn').addEventListener('click', async () => {
         
         if (response && !response.error) {
             const canGift = response.canGift;
-            const priceDiffPercent = response.priceDiffPercent;
-            const diffColor = Math.abs(priceDiffPercent) > 15 ? '#f87171' : '#4ade80';
-            const diffSymbol = priceDiffPercent > 0 ? '+' : '';
-            
-            const resultHtml = `
-                <div class="status ${canGift ? 'success' : 'error'}">
-                    ${canGift ? '✅ 可以赠送！' : '❌ 不可以赠送'}
-                </div>
-                
-                ${response.failReason ? `
-                    <div style="margin-top: 8px; padding: 8px; background: rgba(248,113,113,0.2); border-radius: 6px; font-size: 12px;">
-                        ⚠️ ${response.failReason}
-                    </div>
-                ` : ''}
-                
-                <div style="margin-top: 12px;">
-                    <div style="font-size: 10px; color: #888; margin-bottom: 6px;">
-                        数据来源: ${response.source || 'Steam 官方接口'}
-                    </div>
-                    
-                    <div style="margin-top: 10px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 6px;">
-                        <div style="font-weight: bold; margin-bottom: 6px;">🔍 Steam API 查询结果</div>
-                        <div style="font-size: 11px; font-family: monospace;">
-                            <div>📍 发送方 (${senderSteamCC}):</div>
-                            <div style="margin-left: 12px;">
-                                价格: ${response.rawSenderPrice} ${response.senderCurrency || senderSteamCC}
-                            </div>
-                            <div style="margin-top: 6px;">📍 接收方 (${recipientSteamCC}):</div>
-                            <div style="margin-left: 12px;">
-                                价格: ${response.rawRecipientPrice} ${response.recipientCurrency || recipientSteamCC}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div style="margin-top: 10px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 6px;">
-                        <div style="font-weight: bold; margin-bottom: 6px;">🌍 区域价格差异检查 (≤15% 限制)</div>
-                        <div style="font-size: 11px; font-family: monospace;">
-                            接收方价格换算成发送方货币:<br>
-                            ${response.rawRecipientPrice} ${recipientSteamCC} × ${senderRate.toFixed(4)} / ${recipientRate.toFixed(4)} <br>
-                            = ${response.convertedRecipientToSender.toFixed(2)} ${senderSteamCC}
-                        </div>
-                        <div style="font-size: 12px; margin-top: 4px;">
-                            发送方实际价格: ${response.senderPrice} ${senderSteamCC}<br>
-                            价格差异: <span style="color: ${diffColor}; font-weight: bold;">${diffSymbol}${priceDiffPercent.toFixed(2)}%</span>
-                        </div>
-                        <div style="font-size: 12px; margin-top: 4px; color: ${response.isPriceDiffAcceptable ? '#4ade80' : '#f87171'}">
-                            ${response.isPriceDiffAcceptable ? '✅ 通过 (差异 ≤15%)' : `❌ 不通过 (差异 ${Math.abs(priceDiffPercent).toFixed(2)}% > 15%)`}
-                        </div>
-                    </div>
-                </div>
-            `;
-            showResult(resultHtml);
+            showResultInStatusArea(canGift, response, senderSteamCC, recipientSteamCC, senderRate, recipientRate);
         } else {
             showError(response?.error || '无法获取价格数据，请稍后重试');
+            hideResultInStatusArea();
         }
     });
 });
@@ -336,6 +446,19 @@ document.getElementById('senderSearch').addEventListener('input', updateSenderSe
 document.getElementById('recipientSearch').addEventListener('input', updateRecipientSelect);
 document.getElementById('swapBtn').addEventListener('click', swapCountries);
 document.getElementById('closeErrorBtn').addEventListener('click', hideError);
+document.getElementById('refreshCountryBtn').addEventListener('click', () => {
+    refreshCurrentCountry();
+});
+
+// 监听下拉框变化更新状态显示
+document.getElementById('senderCountry').addEventListener('change', () => {
+    updateStatusDisplay();
+    hideResultInStatusArea();
+});
+document.getElementById('recipientCountry').addEventListener('change', () => {
+    updateStatusDisplay();
+    hideResultInStatusArea();
+});
 
 // 页面加载时初始化
 loadCountries();

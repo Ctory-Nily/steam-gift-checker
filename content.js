@@ -4,25 +4,91 @@
 function getPageInfo() {
     const url = window.location.pathname;
     
-    // 检测捆绑包 (bundle)
     const bundleMatch = url.match(/\/bundle\/(\d+)(?:\/|$)/);
     if (bundleMatch) {
         return { type: 'bundle', id: bundleMatch[1], error: '捆绑包暂不支持检测' };
     }
     
-    // 检测组合包 (sub)
     const subMatch = url.match(/\/sub\/(\d+)(?:\/|$)/);
     if (subMatch) {
         return { type: 'sub', id: subMatch[1], error: '组合包暂不支持检测' };
     }
     
-    // 检测游戏 (app)
     const appMatch = url.match(/\/app\/(\d+)(?:\/|$)/);
     if (appMatch) {
         return { type: 'app', id: appMatch[1], error: null };
     }
     
     return { type: 'unknown', id: null, error: '不支持的页面类型' };
+}
+
+// 从 application_config 元素中提取 COUNTRY
+function getCountryFromApplicationConfig() {
+    try {
+        const appConfigElement = document.getElementById('application_config');
+        if (appConfigElement) {
+            const dataConfig = appConfigElement.getAttribute('data-config');
+            if (dataConfig) {
+                // 解析 JSON 字符串
+                const config = JSON.parse(dataConfig);
+                if (config.COUNTRY) {
+                    // 转换为小写，与 background.js 中的 key 保持一致
+                    const countryCode = config.COUNTRY.toLowerCase();
+                    console.log(`[Content] 从 application_config 获取到当前国家: ${countryCode} (原始: ${config.COUNTRY})`);
+                    return countryCode;
+                }
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error('[Content] 解析 application_config 失败:', error);
+        return null;
+    }
+}
+
+// 获取当前 Steam 账号所在的国家 - 多种方式
+function getCurrentSteamCountry() {
+    try {
+        // 方法1: 从 application_config 元素获取（最可靠）
+        const countryFromElement = getCountryFromApplicationConfig();
+        if (countryFromElement) {
+            return countryFromElement;
+        }
+        
+        // 方法2: 从 GStoreItemData 获取
+        if (typeof GStoreItemData !== 'undefined' && 
+            GStoreItemData.rgNavParams && 
+            GStoreItemData.rgNavParams.__page_default_obj && 
+            GStoreItemData.rgNavParams.__page_default_obj.countrycode) {
+            let countryCode = GStoreItemData.rgNavParams.__page_default_obj.countrycode;
+            // 转换为小写
+            countryCode = countryCode.toLowerCase();
+            console.log(`[Content] 从 GStoreItemData 获取到当前国家: ${countryCode}`);
+            return countryCode;
+        }
+        
+        // 方法3: 从 application_config 变量获取
+        if (typeof application_config !== 'undefined' && application_config.COUNTRY) {
+            let countryCode = application_config.COUNTRY;
+            // 转换为小写
+            countryCode = countryCode.toLowerCase();
+            console.log(`[Content] 从 application_config 变量获取到当前国家: ${countryCode}`);
+            return countryCode;
+        }
+        
+        console.log('[Content] 无法获取当前国家');
+        return null;
+    } catch (error) {
+        console.error('[Content] 获取当前国家失败:', error);
+        return null;
+    }
+}
+
+// 强制刷新获取国家（不刷新页面，只重新读取变量）
+function refreshCurrentCountry() {
+    const countryCode = getCurrentSteamCountry();
+    console.log(`[Content] 刷新后获取到当前国家: ${countryCode}`);
+    return countryCode;
 }
 
 // 监听来自popup的消息
@@ -38,6 +104,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         checkGiftability(request)
             .then(result => sendResponse(result))
             .catch(error => sendResponse({ error: error.message }));
+        return true;
+    }
+    
+    // 获取当前国家
+    if (request.action === 'getCurrentCountry') {
+        const countryCode = getCurrentSteamCountry();
+        sendResponse({ success: true, countryCode: countryCode });
+        return true;
+    }
+    
+    // 刷新当前国家（不刷新页面）
+    if (request.action === 'refreshCountry') {
+        const countryCode = refreshCurrentCountry();
+        sendResponse({ success: true, countryCode: countryCode });
         return true;
     }
 });
@@ -156,6 +236,13 @@ function init() {
     console.log(`当前页面类型: ${pageInfo.type}`);
     if (pageInfo.error) {
         console.log(`提示: ${pageInfo.error}`);
+    }
+    
+    // 获取当前国家并保存到 storage
+    const currentCountry = getCurrentSteamCountry();
+    if (currentCountry) {
+        chrome.storage.local.set({ currentSteamCountry: currentCountry });
+        console.log(`已保存当前 Steam 国家: ${currentCountry}`);
     }
 }
 

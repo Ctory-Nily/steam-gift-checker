@@ -45,7 +45,7 @@ const countryConfig = {
     'ar': { currencyCode: 'USD', currencyName: '阿根廷', symbol: '$', steamCC: 'ar', regionGroup: 'LATAM' },
     'tr': { currencyCode: 'USD', currencyName: '土耳其', symbol: '$', steamCC: 'tr', regionGroup: 'MENA' },
     'az': { currencyCode: 'USD', currencyName: '阿塞拜疆', symbol: '$', steamCC: 'az', regionGroup: 'CIS' },
-    'pk': { currencyCode: 'USD', currencyName: '南亚 (巴基斯坦)', symbol: '$', steamCC: 'pk', regionGroup: 'ASIA' },
+    'pk': { currencyCode: 'USD', currencyName: '南亚 [巴基斯坦]', symbol: '$', steamCC: 'pk', regionGroup: 'ASIA' },
 };
 
 // 获取所有国家列表（用于下拉框，key 使用 steamCC）
