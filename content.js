@@ -39,75 +39,128 @@ function getPageInfo() {
     return { type: 'unknown', id: null, error: '不支持的页面类型\n\n支持的页面：\n- store.steampowered.com/app/xxxxx\n- store.steampowered.com/sub/xxxxx\n- steamdb.info/app/xxxxx\n- steamdb.info/sub/xxxxx', apiType: null, source: null };
 }
 
+const currencyToCountryMap = {
+    // 标准货币
+    'Ukrainian Hryvnia': 'ua',
+    'Russian Ruble': 'ru',
+    'U.S. Dollar': 'us',
+    'Euro': 'eu',
+    'British Pound': 'uk',
+    'Chinese Yuan': 'cn',
+    'Japanese Yen': 'jp',
+    'South Korean Won': 'kr',
+    'Brazilian Real': 'br',
+    'Indian Rupee': 'in',
+    'Canadian Dollar': 'ca',
+    'Australian Dollar': 'au',
+    'Swiss Franc': 'ch',
+    'Polish Zloty': 'pl',
+    'Norwegian Krone': 'no',
+    'Indonesian Rupiah': 'id',
+    'Malaysian Ringgit': 'my',
+    'Philippine Peso': 'ph',
+    'Singapore Dollar': 'sg',
+    'Thai Baht': 'th',
+    'Vietnamese Dong': 'vn',
+    'Turkish Lira': 'tr',
+    'Mexican Peso': 'mx',
+    'New Zealand Dollar': 'nz',
+    'Chilean Peso': 'cl',
+    'Peruvian Sol': 'pe',
+    'Colombian Peso': 'co',
+    'South African Rand': 'za',
+    'Hong Kong Dollar': 'hk',
+    'Taiwan Dollar': 'tw',
+    'Saudi Riyal': 'sa',
+    'U.A.E. Dirham': 'ae',
+    'Argentine Peso': 'ar',
+    'Israeli New Shekel': 'il',
+    'Kazakhstani Tenge': 'kz',
+    'Kuwaiti Dinar': 'kw',
+    'Qatari Riyal': 'qa',
+    'Costa Rican Colon': 'cr',
+    'Uruguayan Peso': 'uy',
+    // 区域组（使用 USD 的地区）- 必须放在 U.S. Dollar 之前，确保优先匹配
+    'LATAM - U.S. Dollar': 'ar',
+    'CIS - U.S. Dollar': 'az',
+    'South Asia - USD': 'pk',
+    'MENA - U.S. Dollar': 'tr'
+};
+
 // 从 SteamDB 页面获取当前显示的国家（增强版）
 function getSteamDBCountry() {
     try {
+        console.log('[Content] 开始获取 SteamDB 国家...');
+        
         // 方法1: 从货币选择器按钮获取
         const currencyBtn = document.querySelector('#js-currency-selector-btn');
         if (currencyBtn) {
+            console.log('[Content] 找到货币选择器按钮');
+            
             // 查找货币名称 span
             const currencySpan = currencyBtn.querySelector('.single-price-name');
             if (currencySpan) {
                 const currencyText = currencySpan.textContent.trim();
-                console.log(`[Content] SteamDB 货币选择器文本: ${currencyText}`);
+                console.log(`[Content] SteamDB 货币选择器文本: "${currencyText}"`);
                 
-                // 货币名称到国家代码的映射
-                const currencyToCountry = {
-                    'Ukrainian Hryvnia': 'ua',
-                    'Russian Ruble': 'ru',
-                    'U.S. Dollar': 'us',
-                    'Euro': 'eu',
-                    'British Pound': 'uk',
-                    'Chinese Yuan': 'cn',
-                    'Japanese Yen': 'jp',
-                    'South Korean Won': 'kr',
-                    'Brazilian Real': 'br',
-                    'Indian Rupee': 'in',
-                    'Canadian Dollar': 'ca',
-                    'Australian Dollar': 'au',
-                    'Swiss Franc': 'ch',
-                    'Polish Zloty': 'pl',
-                    'Norwegian Krone': 'no',
-                    'Indonesian Rupiah': 'id',
-                    'Malaysian Ringgit': 'my',
-                    'Philippine Peso': 'ph',
-                    'Singapore Dollar': 'sg',
-                    'Thai Baht': 'th',
-                    'Vietnamese Dong': 'vn',
-                    'Turkish Lira': 'tr',
-                    'Mexican Peso': 'mx',
-                    'New Zealand Dollar': 'nz',
-                    'Chilean Peso': 'cl',
-                    'Peruvian Sol': 'pe',
-                    'Colombian Peso': 'co',
-                    'South African Rand': 'za',
-                    'Hong Kong Dollar': 'hk',
-                    'Taiwan Dollar': 'tw',
-                    'Saudi Riyal': 'sa',
-                    'U.A.E. Dirham': 'ae',
-                    'Argentine Peso': 'ar',
-                    'Israeli New Shekel': 'il',
-                    'Kazakhstani Tenge': 'kz',
-                    'Kuwaiti Dinar': 'kw',
-                    'Qatari Riyal': 'qa',
-                    'Costa Rican Colon': 'cr',
-                    'Uruguayan Peso': 'uy',
-                    'LATAM - U.S. Dollar': 'ar',
-                    'CIS - U.S. Dollar': 'az',
-                    'South Asia - USD': 'pk',
-                    'MENA - U.S. Dollar': 'tr'
-                };
+                // 优先匹配区域组（长文本），避免被 U.S. Dollar 匹配
+                // 区域组映射顺序：LATAM, CIS, South Asia, MENA 优先匹配
+                const regionGroupOrder = [
+                    'LATAM - U.S. Dollar',
+                    'CIS - U.S. Dollar', 
+                    'South Asia - USD',
+                    'MENA - U.S. Dollar'
+                ];
                 
-                for (const [currencyName, countryCode] of Object.entries(currencyToCountry)) {
-                    if (currencyText.includes(currencyName)) {
-                        console.log(`[Content] 从 SteamDB 获取到当前国家: ${countryCode}`);
+                // 先检查区域组
+                for (const regionText of regionGroupOrder) {
+                    if (currencyText === regionText || currencyText.includes(regionText)) {
+                        const countryCode = currencyToCountryMap[regionText];
+                        console.log(`[Content] 匹配到区域组: ${regionText} -> ${countryCode}`);
                         return countryCode;
                     }
                 }
+                
+                // 再检查其他货币
+                for (const [currencyName, countryCode] of Object.entries(currencyToCountryMap)) {
+                    // 跳过已经检查过的区域组
+                    if (regionGroupOrder.includes(currencyName)) continue;
+                    
+                    if (currencyText === currencyName || currencyText.includes(currencyName)) {
+                        console.log(`[Content] 匹配到货币: ${currencyName} -> ${countryCode}`);
+                        return countryCode;
+                    }
+                }
+                
+                // 如果没有精确匹配，尝试模糊匹配
+                for (const [currencyName, countryCode] of Object.entries(currencyToCountryMap)) {
+                    if (currencyText.toLowerCase().includes(currencyName.toLowerCase()) || 
+                        currencyName.toLowerCase().includes(currencyText.toLowerCase())) {
+                        console.log(`[Content] 模糊匹配到: ${currencyName} -> ${countryCode}`);
+                        return countryCode;
+                    }
+                }
+                
+                console.log(`[Content] 未找到匹配的货币: ${currencyText}`);
+            } else {
+                console.log('[Content] 未找到 .single-price-name 元素');
+            }
+        } else {
+            console.log('[Content] 未找到 #js-currency-selector-btn 按钮');
+        }
+        
+        // 方法2: 从页面中的 flag 图片获取
+        const flagImg = document.querySelector('.flag');
+        if (flagImg && flagImg.src) {
+            const flagMatch = flagImg.src.match(/\/country\/([a-z]{2})\.svg/i);
+            if (flagMatch) {
+                const countryCode = flagMatch[1].toLowerCase();
+                console.log(`[Content] 从 flag 图片获取到当前国家: ${countryCode}`);
+                return countryCode;
             }
         }
         
-        // 方法2: 从页面 URL 中的国家参数获取
+        // 方法3: 从 URL 参数获取
         const urlParams = new URLSearchParams(window.location.search);
         const ccParam = urlParams.get('cc');
         if (ccParam) {
@@ -115,16 +168,7 @@ function getSteamDBCountry() {
             return ccParam.toLowerCase();
         }
         
-        // 方法3: 从页面中的 flag 图片获取
-        const flagImg = document.querySelector('.flag');
-        if (flagImg && flagImg.src) {
-            const flagMatch = flagImg.src.match(/\/country\/([a-z]{2})\.svg/i);
-            if (flagMatch) {
-                console.log(`[Content] 从 flag 图片获取到当前国家: ${flagMatch[1]}`);
-                return flagMatch[1].toLowerCase();
-            }
-        }
-        
+        console.log('[Content] 无法获取 SteamDB 国家');
         return null;
     } catch (error) {
         console.error('[Content] 获取 SteamDB 国家失败:', error);
@@ -240,7 +284,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
     // 刷新当前国家
     if (request.action === 'refreshCountry') {
-        const countryCode = refreshCurrentCountry();
+        const countryCode = getCurrentSteamCountry();
         console.log('[Content] 刷新后国家:', countryCode);
         sendResponse({ success: true, countryCode: countryCode });
         return true;
@@ -249,7 +293,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // ping 测试
     if (request.action === 'ping') {
         console.log('[Content] 响应 ping, 页面:', window.location.href);
-        sendResponse({ success: true, message: 'pong', url: window.location.href, source: getPageInfo().source });
+        const pageInfo = getPageInfo();
+        sendResponse({ 
+            success: true, 
+            message: 'pong', 
+            url: window.location.href, 
+            source: pageInfo.source,
+            type: pageInfo.type
+        });
         return true;
     }
     
@@ -444,16 +495,35 @@ async function checkGiftability(params, pageInfo) {
     };
 }
 
+// 页面加载时添加可见标记
+function addVisibleMarker() {
+    try {
+        const marker = document.createElement('div');
+        marker.style.cssText = 'position:fixed; bottom:10px; right:10px; background:#667eea; color:white; padding:4px 8px; border-radius:4px; z-index:99999; font-size:11px; font-family:sans-serif; opacity:0.8;';
+        marker.textContent = '🎮 Steam Gift Checker';
+        document.body.appendChild(marker);
+        console.log('[Content] 已添加可见标记');
+    } catch(e) {
+        console.error('[Content] 添加标记失败:', e);
+    }
+}
+
 // 初始化
 function init() {
-    console.log('[Content] Steam Gift Checker 已加载');
+    console.log('[Content] ========== Steam Gift Checker 已加载 ==========');
+    console.log('[Content] 当前页面:', window.location.href);
+    console.log('[Content] 页面来源:', window.location.hostname);
+    
     const pageInfo = getPageInfo();
-    console.log(`当前页面: ${pageInfo.source}, 类型: ${pageInfo.type}`);
+    console.log(`[Content] 页面类型: ${pageInfo.type}, 来源: ${pageInfo.source}`);
     if (pageInfo.error) {
-        console.log(`提示: ${pageInfo.error}`);
+        console.log(`[Content] 提示: ${pageInfo.error}`);
     } else if (pageInfo.type === 'app' || pageInfo.type === 'sub') {
-        console.log(`支持检测, ID: ${pageInfo.id}`);
+        console.log(`[Content] 支持检测, ID: ${pageInfo.id}`);
     }
+    
+    // 添加可见标记
+    addVisibleMarker();
 }
 
 if (document.readyState === 'loading') {

@@ -251,7 +251,7 @@ async function refreshCurrentCountry() {
                     document.getElementById('senderCountry').value = currentCountry;
                     updateStatusDisplay();
                     saveCountries();
-                    showError(`已将发送方设置为 ${countryName} (${currentCountry.toUpperCase()})`, true);
+                    showError(`已将发送方设置为 ${countryName}`, true);
                     console.log(`[Popup] 自动设置发送方为: ${currentCountry}`);
                 } else {
                     currentCountryText.textContent = `${currentCountry.toUpperCase()} (不支持)`;
