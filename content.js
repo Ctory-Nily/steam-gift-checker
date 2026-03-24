@@ -139,7 +139,11 @@ async function fetchPriceFromSteamAPI(appId, steamCC) {
                 resolve({
                     price: response.price,
                     currency: response.currency,
-                    rawData: response.rawData
+                    rawData: response.rawData,
+                    isFree: response.isFree,
+                    isFreeTrial: response.isFreeTrial,
+                    originalPrice: response.originalPrice,
+                    message: response.message  // ← 添加 message 字段
                 });
             } else {
                 reject(new Error(response?.error || '获取价格失败'));
@@ -172,7 +176,16 @@ async function fetchBothPrices(appId, senderSteamCC, recipientSteamCC) {
         recipientPrice: recipientResult.price,
         senderCurrency: senderResult.currency,
         recipientCurrency: recipientResult.currency,
-        source: 'Steam 官方接口'
+        source: 'Steam 官方接口',
+        // 添加免费游戏信息
+        senderIsFree: senderResult.isFree,
+        senderIsFreeTrial: senderResult.isFreeTrial,
+        senderMessage: senderResult.message,
+        senderOriginalPrice: senderResult.originalPrice,
+        recipientIsFree: recipientResult.isFree,
+        recipientIsFreeTrial: recipientResult.isFreeTrial,
+        recipientMessage: recipientResult.message,
+        recipientOriginalPrice: recipientResult.originalPrice
     };
 }
 
@@ -200,8 +213,77 @@ async function checkGiftability(params) {
     const appId = pageInfo.id;
     console.log(`游戏 ID: ${appId}`);
     
-    const { senderPrice, recipientPrice, source } = await fetchBothPrices(appId, senderCode, recipientCode);
+    const prices = await fetchBothPrices(appId, senderCode, recipientCode);
     
+    const { 
+        senderPrice, recipientPrice, source,
+        senderIsFree, senderIsFreeTrial, senderMessage, senderOriginalPrice,
+        recipientIsFree, recipientIsFreeTrial, recipientMessage, recipientOriginalPrice
+    } = prices;
+    
+    // 处理发送方免费游戏
+    if (senderIsFree || senderIsFreeTrial) {
+        console.log(`发送方免费: ${senderMessage}`);
+        let freeMessage = '';
+        if (senderIsFreeTrial) {
+            freeMessage = `📌 ${senderMessage} (原价 ${senderOriginalPrice} ${senderCode})`;
+        } else {
+            freeMessage = `📌 ${senderMessage}`;
+        }
+        
+        return {
+            canGift: true,
+            senderPrice: senderPrice,
+            recipientPrice: recipientPrice,
+            source: source,
+            isPriceDiffAcceptable: true,
+            priceDiffPercent: 0,
+            convertedRecipientToSender: 0,
+            senderCurrency: senderCode,
+            recipientCurrency: recipientCode,
+            rawSenderPrice: senderPrice,
+            rawRecipientPrice: recipientPrice,
+            appId: appId,
+            pageType: pageInfo.type,
+            isFreeGame: true,
+            freeMessage: freeMessage,
+            originalPrice: senderOriginalPrice,
+            isFreeTrial: senderIsFreeTrial
+        };
+    }
+    
+    // 处理接收方免费游戏
+    if (recipientIsFree || recipientIsFreeTrial) {
+        console.log(`接收方免费: ${recipientMessage}`);
+        let freeMessage = '';
+        if (recipientIsFreeTrial) {
+            freeMessage = `🎉 接收方地区: ${recipientMessage} (原价 ${recipientOriginalPrice} ${recipientCode})`;
+        } else {
+            freeMessage = `🎉 接收方地区: ${recipientMessage}`;
+        }
+        
+        return {
+            canGift: true,
+            senderPrice: senderPrice,
+            recipientPrice: recipientPrice,
+            source: source,
+            isPriceDiffAcceptable: true,
+            priceDiffPercent: 0,
+            convertedRecipientToSender: 0,
+            senderCurrency: senderCode,
+            recipientCurrency: recipientCode,
+            rawSenderPrice: senderPrice,
+            rawRecipientPrice: recipientPrice,
+            appId: appId,
+            pageType: pageInfo.type,
+            isFreeGame: true,
+            freeMessage: freeMessage,
+            originalPrice: recipientOriginalPrice,
+            isFreeTrial: recipientIsFreeTrial
+        };
+    }
+    
+    // 正常价格计算
     console.log(`发送方价格: ${senderPrice}`);
     console.log(`接收方价格: ${recipientPrice}`);
     
@@ -225,6 +307,7 @@ async function checkGiftability(params) {
         rawRecipientPrice: recipientPrice,
         appId: appId,
         pageType: pageInfo.type,
+        isFreeGame: false,
         failReason: priceDiff.isAcceptable ? null : `价格差异 ${Math.abs(priceDiff.percentage).toFixed(2)}% > 15%`
     };
 }

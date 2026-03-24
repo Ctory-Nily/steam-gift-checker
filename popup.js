@@ -43,6 +43,19 @@ function showResultInStatusArea(canGift, response, senderSteamCC, recipientSteam
     const resultArea = document.getElementById('resultArea');
     const resultContent = document.getElementById('resultContent');
     
+    // 如果是免费游戏
+    if (response.isFreeGame) {
+        const freeMessage = response.freeMessage;
+        const isFreeTrial = response.isFreeTrial;
+        
+        resultContent.innerHTML = `
+            <div class="result-status error">❌ 不可以赠送！<br>${freeMessage}</div>
+        `;
+        resultArea.style.display = 'block';
+        return;
+    }
+    
+    // 正常显示逻辑...
     const statusClass = canGift ? 'success' : 'error';
     const statusText = canGift ? '✅ 可以赠送！' : '❌ 不可以赠送';
     const priceDiffPercent = response.priceDiffPercent;
@@ -161,10 +174,22 @@ async function getCurrentSteamCountry(refresh = false) {
     });
 }
 
-// 刷新并显示当前国家
+// 刷新并显示当前国家，同时清空搜索框
 async function refreshCurrentCountry() {
     document.getElementById('currentCountryText').textContent = '获取中...';
     const currentCountry = await getCurrentSteamCountry(true);
+    
+    // 清空搜索框
+    document.getElementById('senderSearch').value = '';
+    document.getElementById('recipientSearch').value = '';
+    senderFilterTerm = '';
+    recipientFilterTerm = '';
+    
+    // 重新渲染下拉框（显示全部）
+    const senderSelect = document.getElementById('senderCountry');
+    const recipientSelect = document.getElementById('recipientCountry');
+    renderSelect(senderSelect, '');
+    renderSelect(recipientSelect, '');
     
     if (currentCountry) {
         const countryName = getCountryNameBySteamCC(currentCountry);

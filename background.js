@@ -94,30 +94,57 @@ async function fetchSteamPrice(appId, steamCC) {
         
         if (!data[appId] || !data[appId].success) {
             console.warn(`[Background] 游戏 ${appId} 在 ${steamCC} 地区可能未上架`);
-            return { price: null, currency: null, rawData: null };
+            return { price: null, currency: null, rawData: null, isFree: false, isFreeTrial: false, message: null };
         }
         
         const gameData = data[appId].data;
         
+        // 检查价格信息
         if (gameData.price_overview) {
             const price = gameData.price_overview.final / 100;
             const currency = gameData.price_overview.currency;
-            console.log(`[Background] 成功获取 ${steamCC} 价格: ${price} ${currency}`);
+            const discountPercent = gameData.price_overview.discount_percent || 0;
+            const initialPrice = gameData.price_overview.initial / 100;
+            
+            // 检查是否为限时免费 (折扣率100%)
+            if (discountPercent === 100) {
+                console.log(`[Background] 游戏在 ${steamCC} 地区限时免费 (原价 ${initialPrice} ${currency})`);
+                return {
+                    price: 0,
+                    currency: currency,
+                    rawData: gameData.price_overview,
+                    isFree: false,
+                    isFreeTrial: true,
+                    originalPrice: initialPrice,
+                    message: '限时免费游戏'  // ← 确保返回
+                };
+            }
+            
+            console.log(`[Background] 成功获取 ${steamCC} 价格: ${price} ${currency} (折扣: ${discountPercent}%)`);
             return {
                 price: price,
                 currency: currency,
-                rawData: gameData.price_overview
+                rawData: gameData.price_overview,
+                isFree: false,
+                isFreeTrial: false,
+                message: null
             };
-        } else if (gameData.is_free) {
-            console.log(`[Background] 游戏在 ${steamCC} 地区是免费的`);
+        } 
+        // 检查是否为永久免费游戏
+        else if (gameData.is_free) {
+            console.log(`[Background] 游戏在 ${steamCC} 地区是永久免费游戏`);
             return {
                 price: 0,
                 currency: getCurrencyCode(steamCC),
-                rawData: { is_free: true }
+                rawData: { is_free: true },
+                isFree: true,
+                isFreeTrial: false,
+                message: '永久免费游戏'  // ← 确保返回
             };
-        } else {
+        } 
+        else {
             console.warn(`[Background] 游戏在 ${steamCC} 地区没有价格信息`);
-            return { price: null, currency: null, rawData: null };
+            return { price: null, currency: null, rawData: null, isFree: false, isFreeTrial: false, message: null };
         }
     } catch (error) {
         console.error(`[Background] 获取 ${steamCC} 价格失败:`, error.message);
