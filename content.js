@@ -55,12 +55,12 @@ function getSteamDBCountry() {
                 const currencyToCountry = {
                     'Ukrainian Hryvnia': 'ua',
                     'Russian Ruble': 'ru',
-                    'US Dollar': 'us',
+                    'U.S. Dollar': 'us',
                     'Euro': 'eu',
-                    'British Pound': 'gb',
+                    'British Pound': 'uk',
                     'Chinese Yuan': 'cn',
                     'Japanese Yen': 'jp',
-                    'Korean Won': 'kr',
+                    'South Korean Won': 'kr',
                     'Brazilian Real': 'br',
                     'Indian Rupee': 'in',
                     'Canadian Dollar': 'ca',
@@ -82,16 +82,20 @@ function getSteamDBCountry() {
                     'Colombian Peso': 'co',
                     'South African Rand': 'za',
                     'Hong Kong Dollar': 'hk',
-                    'New Taiwan Dollar': 'tw',
+                    'Taiwan Dollar': 'tw',
                     'Saudi Riyal': 'sa',
-                    'UAE Dirham': 'ae',
+                    'U.A.E. Dirham': 'ae',
                     'Argentine Peso': 'ar',
                     'Israeli New Shekel': 'il',
                     'Kazakhstani Tenge': 'kz',
                     'Kuwaiti Dinar': 'kw',
                     'Qatari Riyal': 'qa',
                     'Costa Rican Colon': 'cr',
-                    'Uruguayan Peso': 'uy'
+                    'Uruguayan Peso': 'uy',
+                    'LATAM - U.S. Dollar': 'ar',
+                    'CIS - U.S. Dollar': 'az',
+                    'South Asia - USD': 'pk',
+                    'MENA - U.S. Dollar': 'tr'
                 };
                 
                 for (const [currencyName, countryCode] of Object.entries(currencyToCountry)) {
