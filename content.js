@@ -411,9 +411,9 @@ async function checkGiftability(params, pageInfo) {
     if (senderIsFree || senderIsFreeTrial) {
         let freeMessage = '';
         if (senderIsFreeTrial) {
-            freeMessage = `🎉 发送方地区: ${senderMessage} (原价 ${senderOriginalPrice} ${senderCode})`;
+            freeMessage = `${senderMessage} (原价 ${senderOriginalPrice} ${senderCode})`;
         } else {
-            freeMessage = `🎉 发送方地区: ${senderMessage}`;
+            freeMessage = `${senderMessage}`;
         }
         
         return {
