@@ -151,22 +151,36 @@ async function getCurrentSteamCountry(refresh = false) {
     return new Promise((resolve) => {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs.length === 0) {
+                console.log('[Popup] 没有活动标签页');
                 resolve(null);
                 return;
             }
             
+            const tabId = tabs[0].id;
             const action = refresh ? 'refreshCountry' : 'getCurrentCountry';
             
-            chrome.tabs.sendMessage(tabs[0].id, { action: action }, (response) => {
+            console.log(`[Popup] 发送 ${action} 请求到 tab ${tabId}`);
+            
+            // 设置超时
+            const timeoutId = setTimeout(() => {
+                console.log('[Popup] 获取国家超时');
+                resolve(null);
+            }, 5000);
+            
+            chrome.tabs.sendMessage(tabId, { action: action }, (response) => {
+                clearTimeout(timeoutId);
+                
                 if (chrome.runtime.lastError) {
-                    console.log('无法获取当前国家');
+                    console.log('[Popup] 获取当前国家失败:', chrome.runtime.lastError.message);
                     resolve(null);
                     return;
                 }
                 
                 if (response && response.success && response.countryCode) {
+                    console.log(`[Popup] 获取到当前国家: ${response.countryCode}`);
                     resolve(response.countryCode);
                 } else {
+                    console.log('[Popup] 响应中没有国家代码');
                     resolve(null);
                 }
             });
@@ -176,39 +190,79 @@ async function getCurrentSteamCountry(refresh = false) {
 
 // 刷新并显示当前国家，同时清空搜索框
 async function refreshCurrentCountry() {
-    document.getElementById('currentCountryText').textContent = '获取中...';
-    const currentCountry = await getCurrentSteamCountry(true);
+    console.log('[Popup] 开始刷新当前国家');
     
-    // 清空搜索框
-    document.getElementById('senderSearch').value = '';
-    document.getElementById('recipientSearch').value = '';
-    senderFilterTerm = '';
-    recipientFilterTerm = '';
+    const currentCountryText = document.getElementById('currentCountryText');
+    currentCountryText.textContent = '获取中...';
     
-    // 重新渲染下拉框（显示全部）
-    const senderSelect = document.getElementById('senderCountry');
-    const recipientSelect = document.getElementById('recipientCountry');
-    renderSelect(senderSelect, '');
-    renderSelect(recipientSelect, '');
-    
-    if (currentCountry) {
-        const countryName = getCountryNameBySteamCC(currentCountry);
-        document.getElementById('currentCountryText').textContent = `${countryName} (${currentCountry.toUpperCase()})`;
-        
-        const countryExists = allCountries.some(c => c.key === currentCountry);
-        if (countryExists) {
-            document.getElementById('senderCountry').value = currentCountry;
-            updateStatusDisplay();
-            saveCountries();
-            showError(`已将发送方设置为 ${countryName} (${currentCountry.toUpperCase()})`, true);
-        } else {
-            document.getElementById('currentCountryText').textContent = `${currentCountry.toUpperCase()} (不支持)`;
-            showError(`当前地区 ${currentCountry.toUpperCase()} 不在支持列表中，请手动选择发送方国家`);
-        }
-    } else {
-        document.getElementById('currentCountryText').textContent = '无法获取，请刷新页面';
-        showError('无法获取当前地区，请确保在 Steam 商店页面');
+    // 先 ping 测试 content script 是否存在
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) {
+        currentCountryText.textContent = '无法获取，请刷新页面';
+        showError('没有活动标签页，请先打开 Steam 或 SteamDB 页面');
+        return;
     }
+    
+    console.log(`[Popup] 当前标签页: ${tab.url}`);
+    
+    // 检查是否在支持的页面
+    const supportedDomains = ['store.steampowered.com', 'steamdb.info'];
+    const isSupported = supportedDomains.some(domain => tab.url.includes(domain));
+    
+    if (!isSupported) {
+        currentCountryText.textContent = '不支持的页面';
+        showError('请在 Steam 商店页面或 SteamDB 页面使用此功能');
+        return;
+    }
+    
+    // 先 ping 测试
+    chrome.tabs.sendMessage(tab.id, { action: 'ping' }, (pingResponse) => {
+        if (chrome.runtime.lastError) {
+            console.error('[Popup] ping 失败:', chrome.runtime.lastError);
+            currentCountryText.textContent = '无法连接，请刷新页面';
+            showError('无法连接到页面，请刷新页面后重试');
+            return;
+        }
+        
+        console.log('[Popup] ping 成功:', pingResponse);
+        
+        // 获取当前国家
+        getCurrentSteamCountry(true).then(currentCountry => {
+            console.log('[Popup] 获取到当前国家:', currentCountry);
+            
+            // 清空搜索框
+            document.getElementById('senderSearch').value = '';
+            document.getElementById('recipientSearch').value = '';
+            senderFilterTerm = '';
+            recipientFilterTerm = '';
+            
+            // 重新渲染下拉框（显示全部）
+            const senderSelect = document.getElementById('senderCountry');
+            const recipientSelect = document.getElementById('recipientCountry');
+            renderSelect(senderSelect, '');
+            renderSelect(recipientSelect, '');
+            
+            if (currentCountry) {
+                const countryName = getCountryNameBySteamCC(currentCountry);
+                currentCountryText.textContent = `${countryName} (${currentCountry.toUpperCase()})`;
+                
+                const countryExists = allCountries.some(c => c.key === currentCountry);
+                if (countryExists) {
+                    document.getElementById('senderCountry').value = currentCountry;
+                    updateStatusDisplay();
+                    saveCountries();
+                    showError(`已将发送方设置为 ${countryName} (${currentCountry.toUpperCase()})`, true);
+                    console.log(`[Popup] 自动设置发送方为: ${currentCountry}`);
+                } else {
+                    currentCountryText.textContent = `${currentCountry.toUpperCase()} (不支持)`;
+                    showError(`当前地区 ${currentCountry.toUpperCase()} 不在支持列表中，请手动选择发送方国家`);
+                }
+            } else {
+                currentCountryText.textContent = '无法获取，请刷新页面';
+                showError('无法获取当前地区，请确保在 Steam 商店页面或 SteamDB 页面');
+            }
+        });
+    });
 }
 
 function getSearchKeyword(inputElement) {
@@ -440,6 +494,7 @@ async function loadCountries() {
 
 // ========== 检测逻辑 ==========
 
+// 在检测按钮点击事件中
 document.getElementById('checkBtn').addEventListener('click', async () => {
     console.log('=== 检测按钮被点击 ===');
     
@@ -472,50 +527,66 @@ document.getElementById('checkBtn').addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     console.log(`当前标签页: ${tab.url}`);
     
-    if (!tab.url.includes('store.steampowered.com/')) {
-        showError('请先访问 Steam 页面');
+    // 支持的域名
+    const supportedDomains = ['store.steampowered.com', 'steamdb.info'];
+    const isSupportedDomain = supportedDomains.some(domain => tab.url.includes(domain));
+    
+    if (!isSupportedDomain) {
+        showError('请访问 Steam 商店页面 (store.steampowered.com) 或 SteamDB 页面 (steamdb.info)');
         return;
     }
     
-    if (tab.url.includes('/bundle/') || tab.url.includes('/sub/')) {
-        showError('捆绑包和组合包暂不支持检测，请进入游戏单品页面');
+    // 检查是否为 bundle（不支持）
+    if (tab.url.includes('/bundle/')) {
+        showError('捆绑包暂不支持检测');
         return;
     }
     
     showLoading();
     
-    let timeoutId = setTimeout(() => {
-        hideLoading();
-        showError('请求超时，请检查网络连接后重试');
-    }, 30000);
-    
-    console.log('发送消息到 content script...');
-    
-    chrome.tabs.sendMessage(tab.id, {
-        action: 'checkGift',
-        senderCode: senderSteamCC,
-        recipientCode: recipientSteamCC,
-        senderRate: senderRate,
-        recipientRate: recipientRate
-    }, (response) => {
-        clearTimeout(timeoutId);
-        hideLoading();
-        
-        console.log('收到响应:', response);
-        
+    // 先 ping 测试 content script 是否存在
+    chrome.tabs.sendMessage(tab.id, { action: 'ping' }, (pingResponse) => {
         if (chrome.runtime.lastError) {
-            console.error('发送消息失败:', chrome.runtime.lastError);
-            showError('无法连接到页面，请刷新页面后重试');
+            console.error('ping 失败:', chrome.runtime.lastError);
+            hideLoading();
+            showError('无法连接到页面，请刷新页面后重试\n\n提示：请确保当前在支持的页面');
             return;
         }
         
-        if (response && !response.error) {
-            const canGift = response.canGift;
-            showResultInStatusArea(canGift, response, senderSteamCC, recipientSteamCC, senderRate, recipientRate);
-        } else {
-            showError(response?.error || '无法获取价格数据，请稍后重试');
-            hideResultInStatusArea();
-        }
+        console.log('ping 成功:', pingResponse);
+        
+        // 发送检测请求
+        let timeoutId = setTimeout(() => {
+            hideLoading();
+            showError('请求超时，请检查网络连接后重试');
+        }, 30000);
+        
+        chrome.tabs.sendMessage(tab.id, {
+            action: 'checkGift',
+            senderCode: senderSteamCC,
+            recipientCode: recipientSteamCC,
+            senderRate: senderRate,
+            recipientRate: recipientRate
+        }, (response) => {
+            clearTimeout(timeoutId);
+            hideLoading();
+            
+            console.log('检测响应:', response);
+            
+            if (chrome.runtime.lastError) {
+                console.error('发送消息失败:', chrome.runtime.lastError);
+                showError('无法连接到页面，请刷新页面后重试');
+                return;
+            }
+            
+            if (response && !response.error) {
+                const canGift = response.canGift;
+                showResultInStatusArea(canGift, response, senderSteamCC, recipientSteamCC, senderRate, recipientRate);
+            } else {
+                showError(response?.error || '无法获取价格数据，请稍后重试');
+                hideResultInStatusArea();
+            }
+        });
     });
 });
 
@@ -543,3 +614,16 @@ document.getElementById('recipientCountry').addEventListener('change', () => {
 
 // 页面加载时初始化
 loadCountries();
+
+// 页面加载时初始化
+async function initPopup() {
+    await loadCountries();
+    
+    // 延迟一下再获取当前国家，确保页面已加载
+    setTimeout(() => {
+        refreshCurrentCountry();
+    }, 500);
+}
+
+// 页面加载时初始化
+initPopup();

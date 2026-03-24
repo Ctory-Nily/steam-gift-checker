@@ -69,11 +69,11 @@ function getCurrencyCode(steamCC) {
     return countryConfig[steamCC]?.currencyCode || 'USD';
 }
 
-// 发起 Steam API 请求
-async function fetchSteamPrice(appId, steamCC) {
+// 获取 app 价格 (原有接口)
+async function fetchAppPrice(appId, steamCC) {
     const url = `https://store.steampowered.com/api/appdetails?appids=${appId}&cc=${steamCC}&l=english`;
     
-    console.log(`[Background] 请求 ${steamCC}: ${url}`);
+    console.log(`[Background] 请求 App ${appId} (${steamCC}): ${url}`);
     
     try {
         const response = await fetch(url, {
@@ -99,16 +99,13 @@ async function fetchSteamPrice(appId, steamCC) {
         
         const gameData = data[appId].data;
         
-        // 检查价格信息
         if (gameData.price_overview) {
             const price = gameData.price_overview.final / 100;
             const currency = gameData.price_overview.currency;
             const discountPercent = gameData.price_overview.discount_percent || 0;
             const initialPrice = gameData.price_overview.initial / 100;
             
-            // 检查是否为限时免费 (折扣率100%)
             if (discountPercent === 100) {
-                console.log(`[Background] 游戏在 ${steamCC} 地区限时免费 (原价 ${initialPrice} ${currency})`);
                 return {
                     price: 0,
                     currency: currency,
@@ -116,11 +113,10 @@ async function fetchSteamPrice(appId, steamCC) {
                     isFree: false,
                     isFreeTrial: true,
                     originalPrice: initialPrice,
-                    message: '限时免费游戏'  // ← 确保返回
+                    message: '限时免费游戏'
                 };
             }
             
-            console.log(`[Background] 成功获取 ${steamCC} 价格: ${price} ${currency} (折扣: ${discountPercent}%)`);
             return {
                 price: price,
                 currency: currency,
@@ -130,32 +126,116 @@ async function fetchSteamPrice(appId, steamCC) {
                 message: null
             };
         } 
-        // 检查是否为永久免费游戏
         else if (gameData.is_free) {
-            console.log(`[Background] 游戏在 ${steamCC} 地区是永久免费游戏`);
             return {
                 price: 0,
                 currency: getCurrencyCode(steamCC),
                 rawData: { is_free: true },
                 isFree: true,
                 isFreeTrial: false,
-                message: '永久免费游戏'  // ← 确保返回
+                message: '永久免费游戏'
             };
         } 
         else {
-            console.warn(`[Background] 游戏在 ${steamCC} 地区没有价格信息`);
             return { price: null, currency: null, rawData: null, isFree: false, isFreeTrial: false, message: null };
         }
     } catch (error) {
-        console.error(`[Background] 获取 ${steamCC} 价格失败:`, error.message);
+        console.error(`[Background] 获取 App ${appId} 价格失败:`, error.message);
         throw error;
+    }
+}
+
+// 获取 sub (组合包) 价格 - 新增接口
+async function fetchSubPrice(packageId, steamCC) {
+    const url = `https://store.steampowered.com/api/packagedetails?packageids=${packageId}&cc=${steamCC}&l=english`;
+    
+    console.log(`[Background] 请求 Sub ${packageId} (${steamCC}): ${url}`);
+    
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            credentials: 'omit',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json',
+                'Accept-Language': 'en-US,en;q=0.9'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (!data[packageId] || !data[packageId].success) {
+            console.warn(`[Background] 组合包 ${packageId} 在 ${steamCC} 地区可能未上架`);
+            return { price: null, currency: null, rawData: null, isFree: false, isFreeTrial: false, message: null };
+        }
+        
+        const packageData = data[packageId].data;
+        
+        if (packageData.price) {
+            const price = packageData.price.final / 100;
+            const currency = packageData.price.currency;
+            const discountPercent = packageData.price.discount_percent || 0;
+            const initialPrice = packageData.price.initial / 100;
+            
+            if (discountPercent === 100) {
+                return {
+                    price: 0,
+                    currency: currency,
+                    rawData: packageData.price,
+                    isFree: false,
+                    isFreeTrial: true,
+                    originalPrice: initialPrice,
+                    message: '限时免费组合包'
+                };
+            }
+            
+            return {
+                price: price,
+                currency: currency,
+                rawData: packageData.price,
+                isFree: false,
+                isFreeTrial: false,
+                message: null
+            };
+        } 
+        else if (packageData.is_free) {
+            return {
+                price: 0,
+                currency: getCurrencyCode(steamCC),
+                rawData: { is_free: true },
+                isFree: true,
+                isFreeTrial: false,
+                message: '永久免费组合包'
+            };
+        } 
+        else {
+            return { price: null, currency: null, rawData: null, isFree: false, isFreeTrial: false, message: null };
+        }
+    } catch (error) {
+        console.error(`[Background] 获取 Sub ${packageId} 价格失败:`, error.message);
+        throw error;
+    }
+}
+
+// 统一的价格获取接口
+async function fetchPrice(apiType, id, steamCC) {
+    if (apiType === 'app') {
+        return await fetchAppPrice(id, steamCC);
+    } else if (apiType === 'package') {
+        return await fetchSubPrice(id, steamCC);
+    } else {
+        throw new Error(`不支持的 API 类型: ${apiType}`);
     }
 }
 
 // 监听消息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'fetchSteamPrice') {
-        fetchSteamPrice(request.appId, request.steamCC)
+        fetchPrice(request.apiType, request.id, request.steamCC)
             .then(result => sendResponse({ success: true, ...result }))
             .catch(error => sendResponse({ success: false, error: error.message }));
         return true;
