@@ -495,19 +495,6 @@ async function checkGiftability(params, pageInfo) {
     };
 }
 
-// 页面加载时添加可见标记
-function addVisibleMarker() {
-    try {
-        const marker = document.createElement('div');
-        marker.style.cssText = 'position:fixed; bottom:10px; right:10px; background:#667eea; color:white; padding:4px 8px; border-radius:4px; z-index:99999; font-size:11px; font-family:sans-serif; opacity:0.8;';
-        marker.textContent = '🎮 Steam Gift Checker';
-        document.body.appendChild(marker);
-        console.log('[Content] 已添加可见标记');
-    } catch(e) {
-        console.error('[Content] 添加标记失败:', e);
-    }
-}
-
 // 初始化
 function init() {
     console.log('[Content] ========== Steam Gift Checker 已加载 ==========');
@@ -522,8 +509,6 @@ function init() {
         console.log(`[Content] 支持检测, ID: ${pageInfo.id}`);
     }
     
-    // 添加可见标记
-    addVisibleMarker();
 }
 
 if (document.readyState === 'loading') {
