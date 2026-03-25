@@ -14,11 +14,13 @@ function showError(message, isSuccess = false) {
     const errorMessage = document.getElementById('errorMessage');
     
     if (isSuccess) {
-        errorContainer.style.background = 'rgba(74, 222, 128, 0.95)';
-        errorContainer.style.borderLeftColor = '#4ade80';
+        const errorContent = errorContainer.querySelector('.error-content');
+        errorContent.style.background = 'rgba(88, 211, 133, 0.95)';
+        errorContent.style.borderLeftColor = '#4ade80';
     } else {
-        errorContainer.style.background = 'rgba(220, 53, 69, 0.95)';
-        errorContainer.style.borderLeftColor = '#ff6b6b';
+        const errorContent = errorContainer.querySelector('.error-content');
+        errorContent.style.background = 'rgba(220, 53, 69, 0.95)';
+        errorContent.style.borderLeftColor = '#ff6b6b';
     }
     
     errorMessage.textContent = message;
@@ -31,7 +33,7 @@ function showError(message, isSuccess = false) {
             errorContainer.style.background = '';
             errorContainer.style.borderLeftColor = '';
         }
-    }, 3000);
+    }, 5000);
 }
 
 function hideError() {

@@ -328,7 +328,7 @@ body {
 .error-content {
     background: rgba(220, 53, 69, 0.95);
     border-left: 4px solid #ff6b6b;
-    /* border-radius: 8px; */
+    border-radius: 8px;
     padding: 10px 12px;
     display: flex;
     align-items: center;

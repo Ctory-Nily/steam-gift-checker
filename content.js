@@ -349,11 +349,11 @@ async function fetchBothPrices(apiType, id, senderSteamCC, recipientSteamCC) {
     ]);
     
     if (senderResult.price === null) {
-        throw new Error(`无法获取价格\n\n该游戏可能未在赠送方国家/地区上架`);
+        throw new Error(`无法获取价格\n\n该游戏可能未在赠送方的国家/地区上架`);
     }
     
     if (recipientResult.price === null) {
-        throw new Error(`无法获取价格\n\n该游戏可能未在收礼方国家/地区上架`);
+        throw new Error(`无法获取价格\n\n该游戏可能未在收礼方的国家/地区上架`);
     }
     
     console.log(`成功获取价格: ${senderSteamCC}=${senderResult.price}, ${recipientSteamCC}=${recipientResult.price}`);
