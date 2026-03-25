@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Steam 跨区送礼差价检测",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "通过对比差价, 来检测不同国家地区之间是否能将游戏送给对方。",
   
   "icons": {
