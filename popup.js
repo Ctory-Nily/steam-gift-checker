@@ -5,6 +5,7 @@ let exchangeRates = {};
 let allCountries = [];
 let senderFilterTerm = '';
 let recipientFilterTerm = '';
+let isLoading = false;  // 添加加载状态标志
 
 // ========== 辅助函数 ==========
 
@@ -277,7 +278,7 @@ function saveCountries() {
             senderCountry: sender, 
             recipientCountry: recipient
         });
-        updateStatusDisplay();
+        updateStatusDisplay(true);  // 静默更新，不触发保存循环
     }
 }
 
@@ -294,7 +295,7 @@ function loadSavedCountries() {
 }
 
 // 更新状态显示区域
-function updateStatusDisplay() {
+function updateStatusDisplay(silent = false) {
     const senderSteamCC = document.getElementById('senderCountry').value;
     const recipientSteamCC = document.getElementById('recipientCountry').value;
     
@@ -308,7 +309,7 @@ function updateStatusDisplay() {
     }
     
     if (recipientCountry) {
-        document.getElementById('recipientDisplay').textContent = `${recipientCountry.name} (${senderCountry.key.toUpperCase()}) - ${recipientCountry.code}`;
+        document.getElementById('recipientDisplay').textContent = `${recipientCountry.name} (${recipientCountry.key.toUpperCase()}) - ${recipientCountry.code}`;
     } else {
         document.getElementById('recipientDisplay').textContent = '未选择';
     }
@@ -363,14 +364,20 @@ async function getCurrentSteamCountry(refresh = false) {
     });
 }
 
-// 刷新并显示当前国家，同时清空搜索框
+// 刷新并显示当前国家（用户点击刷新按钮时调用）
 async function refreshCurrentCountry() {
     console.log('[Popup] 开始刷新当前国家/地区');
+    
+    // 如果正在加载，等待
+    if (isLoading) {
+        console.log('[Popup] 正在加载中，稍后重试');
+        showError('正在加载中，请稍后重试');
+        return;
+    }
     
     const currentCountryText = document.getElementById('currentCountryText');
     currentCountryText.textContent = '获取中...';
     
-    // 先 ping 测试 content script 是否存在
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) {
         currentCountryText.textContent = '无法获取，请刷新页面';
@@ -380,7 +387,6 @@ async function refreshCurrentCountry() {
     
     console.log(`[Popup] 当前标签页: ${tab.url}`);
     
-    // 检查是否在支持的页面
     const supportedDomains = ['store.steampowered.com', 'steamdb.info'];
     const isSupported = supportedDomains.some(domain => tab.url.includes(domain));
     
@@ -390,7 +396,6 @@ async function refreshCurrentCountry() {
         return;
     }
     
-    // 先 ping 测试
     chrome.tabs.sendMessage(tab.id, { action: 'ping' }, (pingResponse) => {
         if (chrome.runtime.lastError) {
             console.error('[Popup] ping 失败:', chrome.runtime.lastError);
@@ -399,9 +404,6 @@ async function refreshCurrentCountry() {
             return;
         }
         
-        console.log('[Popup] ping 成功:', pingResponse);
-        
-        // 获取当前国家
         getCurrentSteamCountry(true).then(currentCountry => {
             console.log('[Popup] 获取到当前国家/地区:', currentCountry);
             
@@ -411,7 +413,7 @@ async function refreshCurrentCountry() {
             senderFilterTerm = '';
             recipientFilterTerm = '';
             
-            // 重新渲染下拉框（显示全部）
+            // 重新渲染下拉框
             const senderSelect = document.getElementById('senderCountry');
             const recipientSelect = document.getElementById('recipientCountry');
             renderSelect(senderSelect, '');
@@ -423,14 +425,21 @@ async function refreshCurrentCountry() {
                 
                 const countryExists = allCountries.some(c => c.key === currentCountry);
                 if (countryExists) {
-                    document.getElementById('senderCountry').value = currentCountry;
-                    updateStatusDisplay();
-                    saveCountries();
-                    showError(`已将赠送方设置为 ${countryName}`, true);
-                    console.log(`[Popup] 自动设置赠送方为: ${currentCountry}`);
+                    const currentSender = senderSelect.value;
+                    
+                    if (currentSender === currentCountry) {
+                        console.log(`[Popup] 当前赠送方已是 ${countryName}，无需更改`);
+                        updateStatusDisplay(true);
+                    } else {
+                        senderSelect.value = currentCountry;
+                        updateStatusDisplay(true);
+                        saveCountries();
+                        showError(`已将赠送方设置为 ${countryName} (${currentCountry.toUpperCase()})`, true);
+                        console.log(`[Popup] 自动设置赠送方为: ${currentCountry}`);
+                    }
                 } else {
                     currentCountryText.textContent = `${currentCountry.toUpperCase()} (不支持)`;
-                    showError(`当前国家/地区 ${currentCountry.toUpperCase()} 不在支持列表中，请手动选择赠送方国家/地区`);
+                    showError(`当前地区 ${currentCountry.toUpperCase()} 不在支持列表中，请手动选择赠送方国家/地区`);
                 }
             } else {
                 currentCountryText.textContent = '无法获取，请刷新页面';
@@ -466,15 +475,13 @@ function renderSelect(selectElement, filterTerm) {
         selectElement.add(option);
     }
     
-    // 如果当前选中的值在过滤后的列表中，保持选中
     if (filtered.some(c => c.key === currentValue)) {
         selectElement.value = currentValue;
     } else if (filtered.length > 0) {
-        // 否则选中第一个
         selectElement.value = filtered[0].key;
     }
     
-    updateStatusDisplay();
+    updateStatusDisplay(true);  // 静默更新
 }
 
 // 更新发送方下拉框
@@ -614,6 +621,14 @@ async function fetchExchangeRatesFromAPI() {
 }
 
 async function loadCountries() {
+    // 防止重复加载
+    if (isLoading) {
+        console.log('[Popup] 正在加载中，跳过');
+        return;
+    }
+    
+    isLoading = true;
+    
     try {
         const countries = await loadCountriesFromBackground();
         
@@ -636,35 +651,71 @@ async function loadCountries() {
         
         populateCountrySelects();
         
-        // 先尝试加载保存的国家
+        // 加载保存的国家
         const savedSender = await new Promise((resolve) => {
             chrome.storage.local.get(['senderCountry'], (result) => {
                 resolve(result.senderCountry);
             });
         });
         
-        if (!savedSender) {
+        if (savedSender) {
+            loadSavedCountries();
+        } else {
+            // 首次使用，尝试获取当前国家并设置
             const currentCountry = await getCurrentSteamCountry(false);
             if (currentCountry) {
                 const countryExists = allCountries.some(c => c.key === currentCountry);
                 if (countryExists) {
                     document.getElementById('senderCountry').value = currentCountry;
-                    console.log(`自动选择当前 Steam 国家/地区作为赠送方: ${currentCountry}`);
                     saveCountries();
+                    console.log(`首次使用，自动设置赠送方为: ${currentCountry}`);
                 }
             }
-        } else {
-            loadSavedCountries();
         }
         
-        // 显示当前国家
-        await refreshCurrentCountry();
+        // 显示当前国家（不自动选择）
+        await displayCurrentCountryOnly();
         
         console.log('国家/地区列表加载完成，共', allCountries.length, '个国家/地区');
     } catch (error) {
         console.error('Error loading countries:', error);
         showError('网络错误，无法加载国家/地区列表');
+    } finally {
+        isLoading = false;
     }
+}
+
+// 只显示当前国家，不自动选择
+async function displayCurrentCountryOnly() {
+    // 如果正在加载，跳过
+    if (isLoading) {
+        console.log('[Popup] 正在加载中，跳过显示当前国家/地区');
+        return;
+    }
+    
+    const currentCountryText = document.getElementById('currentCountryText');
+    
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) {
+        currentCountryText.textContent = '无法获取';
+        return;
+    }
+    
+    chrome.tabs.sendMessage(tab.id, { action: 'ping' }, (pingResponse) => {
+        if (chrome.runtime.lastError) {
+            currentCountryText.textContent = '无法连接';
+            return;
+        }
+        
+        getCurrentSteamCountry(false).then(currentCountry => {
+            if (currentCountry) {
+                const countryName = getCountryNameBySteamCC(currentCountry);
+                currentCountryText.textContent = `${countryName} (${currentCountry.toUpperCase()})`;
+            } else {
+                currentCountryText.textContent = '无法获取';
+            }
+        });
+    });
 }
 
 // ========== 检测逻辑 ==========
