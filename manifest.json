@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Steam Gift Region Checker",
-  "version": "1.2.2",
-  "description": "Check if you can gift Steam games between different countries",
+  "name": "Steam 跨区送礼差价检测",
+  "version": "1.2.3",
+  "description": "通过对比差价, 来检测不同国家地区之间是否能将游戏送给对方。",
   
   "icons": {
     "16": "icons/icon16.png",

@@ -171,12 +171,6 @@ body {
     cursor: not-allowed;
 }
 
-.error-container {
-    margin-top: 16px;
-    margin-bottom: 16px;
-    animation: slideIn 0.3s ease;
-}
-
 @keyframes slideIn {
     from {
         opacity: 0;
@@ -319,13 +313,13 @@ body {
     word-break: break-all;
 }
 
-/* 检测按钮移到顶部样式调整 */
+/* 检测按钮 */
 .check-button {
     margin-top: 0;
     margin-bottom: 12px;
 }
 
-/* 错误提示容器 - 放在下拉框上面 */
+/* 错误提示容器 */
 .error-container {
     margin: 12px 0;
     animation: slideIn 0.3s ease;
@@ -334,7 +328,7 @@ body {
 .error-content {
     background: rgba(220, 53, 69, 0.95);
     border-left: 4px solid #ff6b6b;
-    border-radius: 8px;
+    /* border-radius: 8px; */
     padding: 10px 12px;
     display: flex;
     align-items: center;
@@ -377,7 +371,7 @@ body {
     transform: scale(1.05);
 }
 
-/* 状态显示区域 - 调整边距 */
+/* 状态显示区域 */
 .status-area {
     background: rgba(0, 0, 0, 0.3);
     border-radius: 8px;
@@ -387,7 +381,7 @@ body {
     border-left: 3px solid #667eea;
 }
 
-/* 内容区域边距调整 */
+/* 内容区域 */
 .content {
     margin-top: 0;
 }

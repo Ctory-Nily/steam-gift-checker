@@ -45,7 +45,7 @@ const countryConfig = {
     'ar': { currencyCode: 'USD', currencyName: '阿根廷', symbol: '$', steamCC: 'ar', regionGroup: 'LATAM' },
     'tr': { currencyCode: 'USD', currencyName: '土耳其', symbol: '$', steamCC: 'tr', regionGroup: 'MENA' },
     'az': { currencyCode: 'USD', currencyName: '阿塞拜疆', symbol: '$', steamCC: 'az', regionGroup: 'CIS' },
-    'pk': { currencyCode: 'USD', currencyName: '南亚 [巴基斯坦]', symbol: '$', steamCC: 'pk', regionGroup: 'ASIA' },
+    'pk': { currencyCode: 'USD', currencyName: '南亚', symbol: '$', steamCC: 'pk', regionGroup: 'ASIA' },
 };
 
 // 获取所有国家列表（用于下拉框，key 使用 steamCC）
@@ -101,7 +101,7 @@ async function fetchAppPrice(appId, steamCC) {
         
         if (gameData.price_overview) {
             const price = gameData.price_overview.final / 100;
-            const currency = gameData.price_overview.currency;
+            const currency = gameData.price_overview.currency;  // 货币代码
             const discountPercent = gameData.price_overview.discount_percent || 0;
             const initialPrice = gameData.price_overview.initial / 100;
             
@@ -119,7 +119,7 @@ async function fetchAppPrice(appId, steamCC) {
             
             return {
                 price: price,
-                currency: currency,
+                currency: currency,  // 返回货币代码
                 rawData: gameData.price_overview,
                 isFree: false,
                 isFreeTrial: false,
@@ -145,7 +145,7 @@ async function fetchAppPrice(appId, steamCC) {
     }
 }
 
-// 获取 sub (组合包) 价格 - 新增接口
+// 获取 sub (组合包) 价格 - 新增 sub 接口
 async function fetchSubPrice(packageId, steamCC) {
     const url = `https://store.steampowered.com/api/packagedetails?packageids=${packageId}&cc=${steamCC}&l=english`;
     
@@ -177,7 +177,7 @@ async function fetchSubPrice(packageId, steamCC) {
         
         if (packageData.price) {
             const price = packageData.price.final / 100;
-            const currency = packageData.price.currency;
+            const currency = packageData.price.currency;  // 货币代码
             const discountPercent = packageData.price.discount_percent || 0;
             const initialPrice = packageData.price.initial / 100;
             
@@ -195,7 +195,7 @@ async function fetchSubPrice(packageId, steamCC) {
             
             return {
                 price: price,
-                currency: currency,
+                currency: currency,  // 返回货币代码
                 rawData: packageData.price,
                 isFree: false,
                 isFreeTrial: false,

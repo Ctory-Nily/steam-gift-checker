@@ -87,10 +87,10 @@ const currencyToCountryMap = {
     'MENA - U.S. Dollar': 'tr'
 };
 
-// 从 SteamDB 页面获取当前显示的国家（增强版）
+// 从 SteamDB 页面获取当前显示的国家
 function getSteamDBCountry() {
     try {
-        console.log('[Content] 开始获取 SteamDB 国家...');
+        console.log('[Content] 开始获取 SteamDB 国家/地区...');
         
         // 方法1: 从货币选择器按钮获取
         const currencyBtn = document.querySelector('#js-currency-selector-btn');
@@ -155,7 +155,7 @@ function getSteamDBCountry() {
             const flagMatch = flagImg.src.match(/\/country\/([a-z]{2})\.svg/i);
             if (flagMatch) {
                 const countryCode = flagMatch[1].toLowerCase();
-                console.log(`[Content] 从 flag 图片获取到当前国家: ${countryCode}`);
+                console.log(`[Content] 从 flag 图片获取到当前国家/地区: ${countryCode}`);
                 return countryCode;
             }
         }
@@ -164,31 +164,31 @@ function getSteamDBCountry() {
         const urlParams = new URLSearchParams(window.location.search);
         const ccParam = urlParams.get('cc');
         if (ccParam) {
-            console.log(`[Content] 从 URL 参数获取到当前国家: ${ccParam}`);
+            console.log(`[Content] 从 URL 参数获取到当前国家/地区: ${ccParam}`);
             return ccParam.toLowerCase();
         }
         
-        console.log('[Content] 无法获取 SteamDB 国家');
+        console.log('[Content] 无法获取 SteamDB 国家/地区');
         return null;
     } catch (error) {
-        console.error('[Content] 获取 SteamDB 国家失败:', error);
+        console.error('[Content] 获取 SteamDB 国家/地区失败:', error);
         return null;
     }
 }
 
-// 获取当前 Steam 账号所在的国家 - 支持所有页面
+// 获取当前 Steam 账号所在的国家
 function getCurrentSteamCountry() {
     const pageInfo = getPageInfo();
-    console.log(`[Content] 获取当前国家, 页面来源: ${pageInfo.source}`);
+    console.log(`[Content] 获取当前国家/地区, 页面来源: ${pageInfo.source}`);
     
     // SteamDB 页面：从页面元素获取
     if (pageInfo.source === 'steamdb') {
         const countryFromSteamDB = getSteamDBCountry();
         if (countryFromSteamDB) {
-            console.log(`[Content] SteamDB 获取到国家: ${countryFromSteamDB}`);
+            console.log(`[Content] SteamDB 获取到国家/地区: ${countryFromSteamDB}`);
             return countryFromSteamDB;
         }
-        console.log('[Content] SteamDB 无法获取国家，返回 null');
+        console.log('[Content] SteamDB 无法获取国家/地区，返回 null');
         return null;
     }
     
@@ -202,7 +202,7 @@ function getCurrentSteamCountry() {
                 const config = JSON.parse(dataConfig);
                 if (config.COUNTRY) {
                     const countryCode = config.COUNTRY.toLowerCase();
-                    console.log(`[Content] 从 application_config 元素获取到当前国家: ${countryCode}`);
+                    console.log(`[Content] 从 application_config 元素获取到当前国家/地区: ${countryCode}`);
                     return countryCode;
                 }
             }
@@ -215,7 +215,7 @@ function getCurrentSteamCountry() {
             GStoreItemData.rgNavParams.__page_default_obj.countrycode) {
             let countryCode = GStoreItemData.rgNavParams.__page_default_obj.countrycode;
             countryCode = countryCode.toLowerCase();
-            console.log(`[Content] 从 GStoreItemData 获取到当前国家: ${countryCode}`);
+            console.log(`[Content] 从 GStoreItemData 获取到当前国家/地区: ${countryCode}`);
             return countryCode;
         }
         
@@ -223,14 +223,14 @@ function getCurrentSteamCountry() {
         if (typeof application_config !== 'undefined' && application_config.COUNTRY) {
             let countryCode = application_config.COUNTRY;
             countryCode = countryCode.toLowerCase();
-            console.log(`[Content] 从 application_config 变量获取到当前国家: ${countryCode}`);
+            console.log(`[Content] 从 application_config 变量获取到当前国家/地区: ${countryCode}`);
             return countryCode;
         }
         
-        console.log('[Content] 无法获取当前国家');
+        console.log('[Content] 无法获取当前国家/地区');
         return null;
     } catch (error) {
-        console.error('[Content] 获取当前国家失败:', error);
+        console.error('[Content] 获取当前国家/地区失败:', error);
         return null;
     }
 }
@@ -238,7 +238,7 @@ function getCurrentSteamCountry() {
 // 强制刷新获取国家（不刷新页面，只重新读取变量）
 function refreshCurrentCountry() {
     const countryCode = getCurrentSteamCountry();
-    console.log(`[Content] 刷新后获取到当前国家: ${countryCode}`);
+    console.log(`[Content] 刷新后获取到当前国家/地区: ${countryCode}`);
     return countryCode;
 }
 
@@ -277,7 +277,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // 获取当前国家
     if (request.action === 'getCurrentCountry') {
         const countryCode = getCurrentSteamCountry();
-        console.log('[Content] 返回当前国家:', countryCode);
+        console.log('[Content] 返回当前国家/地区:', countryCode);
         sendResponse({ success: true, countryCode: countryCode });
         return true;
     }
@@ -285,7 +285,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // 刷新当前国家
     if (request.action === 'refreshCountry') {
         const countryCode = getCurrentSteamCountry();
-        console.log('[Content] 刷新后国家:', countryCode);
+        console.log('[Content] 刷新后国家/地区:', countryCode);
         sendResponse({ success: true, countryCode: countryCode });
         return true;
     }
@@ -307,7 +307,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
 });
 
-// 通过 background 获取指定国家的价格 - 支持多种类型
+// 通过 background 获取指定国家的价格
 async function fetchPriceFromSteamAPI(apiType, id, steamCC) {
     return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage({
@@ -349,11 +349,11 @@ async function fetchBothPrices(apiType, id, senderSteamCC, recipientSteamCC) {
     ]);
     
     if (senderResult.price === null) {
-        throw new Error(`无法获取 ${senderSteamCC} 的价格\n\n该内容可能在发送方地区未上架`);
+        throw new Error(`无法获取价格\n\n该游戏可能未在赠送方国家/地区上架`);
     }
     
     if (recipientResult.price === null) {
-        throw new Error(`无法获取 ${recipientSteamCC} 的价格\n\n该内容可能在接收方地区未上架`);
+        throw new Error(`无法获取价格\n\n该游戏可能未在收礼方国家/地区上架`);
     }
     
     console.log(`成功获取价格: ${senderSteamCC}=${senderResult.price}, ${recipientSteamCC}=${recipientResult.price}`);
@@ -361,8 +361,8 @@ async function fetchBothPrices(apiType, id, senderSteamCC, recipientSteamCC) {
     return {
         senderPrice: senderResult.price,
         recipientPrice: recipientResult.price,
-        senderCurrency: senderResult.currency,
-        recipientCurrency: recipientResult.currency,
+        senderCurrency: senderResult.currency,  // 发送方货币代码
+        recipientCurrency: recipientResult.currency,  // 接收方货币代码
         source: 'Steam 官方接口',
         senderIsFree: senderResult.isFree,
         senderIsFreeTrial: senderResult.isFreeTrial,
@@ -393,8 +393,8 @@ async function checkGiftability(params, pageInfo) {
     
     console.log('=== Steam 礼物检测开始 ===');
     console.log(`页面来源: ${pageInfo.source}, 类型: ${pageInfo.type}, ID: ${pageInfo.id}`);
-    console.log(`发送方 Steam CC: ${senderCode}, 汇率: ${senderRate}`);
-    console.log(`接收方 Steam CC: ${recipientCode}, 汇率: ${recipientRate}`);
+    console.log(`赠送方 Steam CC: ${senderCode}, 汇率: ${senderRate}`);
+    console.log(`收礼方 Steam CC: ${recipientCode}, 汇率: ${recipientRate}`);
     
     const id = pageInfo.id;
     const apiType = pageInfo.apiType;
@@ -411,7 +411,7 @@ async function checkGiftability(params, pageInfo) {
     if (senderIsFree || senderIsFreeTrial) {
         let freeMessage = '';
         if (senderIsFreeTrial) {
-            freeMessage = `${senderMessage} (原价 ${senderOriginalPrice} ${senderCode})`;
+            freeMessage = `${senderMessage}`;
         } else {
             freeMessage = `${senderMessage}`;
         }
@@ -440,9 +440,9 @@ async function checkGiftability(params, pageInfo) {
     if (recipientIsFree || recipientIsFreeTrial) {
         let freeMessage = '';
         if (recipientIsFreeTrial) {
-            freeMessage = `🎉 接收方地区: ${recipientMessage} (原价 ${recipientOriginalPrice} ${recipientCode})`;
+            freeMessage = `${recipientMessage}`;
         } else {
-            freeMessage = `🎉 接收方地区: ${recipientMessage}`;
+            freeMessage = `${recipientMessage}`;
         }
         
         return {
@@ -467,8 +467,8 @@ async function checkGiftability(params, pageInfo) {
     }
     
     // 正常价格计算
-    console.log(`发送方价格: ${senderPrice}`);
-    console.log(`接收方价格: ${recipientPrice}`);
+    console.log(`赠送方价格: ${senderPrice}`);
+    console.log(`收礼方价格: ${recipientPrice}`);
     
     const priceDiff = calculatePriceDifference(senderPrice, recipientPrice, senderRate, recipientRate);
     const canGift = priceDiff.isAcceptable;

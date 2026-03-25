@@ -38,15 +38,190 @@ function hideError() {
     errorContainer.style.display = 'none';
 }
 
+// 货币格式化函数 - 根据货币代码返回格式化后的价格字符串
+function formatPrice(price, currencyCode) {
+    if (price === undefined || price === null) return 'N/A';
+    
+    const numPrice = parseFloat(price);
+    if (isNaN(numPrice)) return price.toString();
+    
+    // 根据货币代码格式化
+    switch (currencyCode) {
+        // 美元 (USD) 及 USD 区域组
+        case 'us':
+        case 'ar':
+        case 'tr':
+        case 'az':
+        case 'pk':
+            return `$${numPrice.toFixed(2)}`;
+        
+        // 人民币 (CNY)
+        case 'cn':
+            return `¥ ${numPrice.toFixed(2)}`;
+        
+        // 印尼卢比 (IDR)
+        case 'id':
+            return `Rp ${Math.round(numPrice).toLocaleString()}`;
+        
+        // 印度卢比 (INR)
+        case 'in':
+            return `₹ ${Math.round(numPrice).toLocaleString()}`;
+        
+        // 菲律宾比索 (PHP)
+        case 'ph':
+            return `₱${numPrice.toFixed(2)}`;
+        
+        // 越南盾 (VND)
+        case 'vn':
+            return `${Math.round(numPrice).toLocaleString()}₫`;
+        
+        // 韩国元 (KRW)
+        case 'kr':
+            return `₩ ${Math.round(numPrice).toLocaleString()}`;
+        
+        // 俄罗斯卢布 (RUB)
+        case 'ru':
+            return `${Math.round(numPrice)} ₽`;
+        
+        // 乌克兰格里夫纳 (UAH)
+        case 'ua':
+            return `${Math.round(numPrice)}₴`;
+        
+        // 哈萨克斯坦坚戈 (KZT)
+        case 'kz':
+            return `${Math.round(numPrice).toLocaleString()}₸`;
+        
+        // 新台币 (TWD)
+        case 'tw':
+            return `NT$ ${Math.round(numPrice).toLocaleString()}`;
+        
+        // 马来西亚林吉特 (MYR)
+        case 'my':
+            return `RM${numPrice.toFixed(2)}`;
+        
+        // 泰国铢 (THB)
+        case 'th':
+            return `฿${numPrice.toFixed(2)}`;
+        
+        // 日元 (JPY)
+        case 'jp':
+            return `¥ ${Math.round(numPrice).toLocaleString()}`;
+        
+        // 加拿大元 (CAD)
+        case 'ca':
+            return `CDN$ ${numPrice.toFixed(2)}`;
+        
+        // 智利比索 (CLP)
+        case 'cl':
+            return `CLP$ ${Math.round(numPrice).toLocaleString()}`;
+        
+        // 乌拉圭比索 (UYU)
+        case 'uy':
+            return `$U${Math.round(numPrice).toLocaleString()}`;
+        
+        // 巴西雷亚尔 (BRL)
+        case 'br':
+            return `R$ ${numPrice.toFixed(2).replace('.', ',')}`;
+        
+        // 新西兰元 (NZD)
+        case 'nz':
+            return `NZ$ ${numPrice.toFixed(2)}`;
+        
+        // 港币 (HKD)
+        case 'hk':
+            return `HK$ ${numPrice.toFixed(2)}`;
+        
+        // 科威特第纳尔 (KWD)
+        case 'kw':
+            return `${numPrice.toFixed(3)} KD`;
+        
+        // 秘鲁索尔 (PEN)
+        case 'pe':
+            return `S/.${numPrice.toFixed(2)}`;
+        
+        // 墨西哥比索 (MXN)
+        case 'mx':
+            return `Mex$ ${Math.round(numPrice).toLocaleString()}`;
+        
+        // 阿联酋迪拉姆 (AED)
+        case 'ae':
+            return `${numPrice.toFixed(2)} AED`;
+        
+        // 英镑 (GBP)
+        case 'uk':
+            return `£${numPrice.toFixed(2)}`;
+        
+        // 沙特里亚尔 (SAR)
+        case 'sa':
+            return `${Math.round(numPrice)} SR`;
+        
+        // 哥伦比亚比索 (COP)
+        case 'co':
+            return `COL$ ${Math.round(numPrice).toLocaleString()}`;
+        
+        // 卡塔尔里亚尔 (QAR)
+        case 'qa':
+            return `${Math.round(numPrice)} QR`;
+        
+        // 哥斯达黎加科朗 (CRC)
+        case 'cr':
+            return `₡${Math.round(numPrice).toLocaleString()}`;
+        
+        // 南非兰特 (ZAR)
+        case 'za':
+            return `R ${numPrice.toFixed(2)}`;
+        
+        // 澳大利亚元 (AUD)
+        case 'au':
+            return `A$ ${numPrice.toFixed(2)}`;
+        
+        // 挪威克朗 (NOK)
+        case 'no':
+            return `${numPrice.toFixed(2).replace('.', ',')} kr`;
+        
+        // 新加坡元 (SGD)
+        case 'sg':
+            return `S$${numPrice.toFixed(2)}`;
+        
+        // 欧元 (EUR)
+        case 'eu':
+            return `${numPrice.toFixed(2).replace('.', ',')}€`;
+        
+        // 波兰兹罗提 (PLN)
+        case 'pl':
+            return `${numPrice.toFixed(2).replace('.', ',')}zł`;
+        
+        // 瑞士法郎 (CHF)
+        case 'ch':
+            return `CHF ${numPrice.toFixed(2)}`;
+        
+        // 以色列新谢克尔 (ILS)
+        case 'il':
+            return `₪${Math.round(numPrice)}`;
+        
+        // 默认格式
+        default:
+            return `${numPrice.toFixed(2)} ${steamCC.toUpperCase()}`;
+    }
+}
+
 // 在状态区域显示检测结果
 function showResultInStatusArea(canGift, response, senderSteamCC, recipientSteamCC, senderRate, recipientRate) {
     const resultArea = document.getElementById('resultArea');
     const resultContent = document.getElementById('resultContent');
     
+    // 获取货币代码
+    const senderCurrencyCode = response.senderCurrency || senderSteamCC;
+    const recipientCurrencyCode = response.recipientCurrency || recipientSteamCC;
+    
+    // 格式化价格
+    const formattedSenderPrice = formatPrice(response.rawSenderPrice, senderCurrencyCode);
+    const formattedRecipientPrice = formatPrice(response.rawRecipientPrice, recipientCurrencyCode);
+    const formattedConvertedPrice = formatPrice(response.convertedRecipientToSender, senderCurrencyCode);
+    
     // 如果是免费游戏
     if (response.isFreeGame) {
         const freeMessage = response.freeMessage;
-        const isFreeTrial = response.isFreeTrial;
         
         resultContent.innerHTML = `
             <div class="result-status error">❌ 不可以赠送！<br>${freeMessage}</div>
@@ -55,20 +230,20 @@ function showResultInStatusArea(canGift, response, senderSteamCC, recipientSteam
         return;
     }
     
-    // 正常显示逻辑...
+    // 正常显示
     const statusClass = canGift ? 'success' : 'error';
     const statusText = canGift ? '✅ 可以赠送！' : '❌ 不可以赠送';
     const priceDiffPercent = response.priceDiffPercent;
-    const diffSymbol = priceDiffPercent > 0 ? '+' : '';
+    const diffSymbol = priceDiffPercent > 0 ? '' : '+';
     
     resultContent.innerHTML = `
         <div class="result-status ${statusClass}">${statusText}</div>
         ${response.failReason ? `<div style="font-size: 11px; color: #f87171; margin-bottom: 8px;">⚠️ ${response.failReason}</div>` : ''}
         <div class="result-detail">
-            <div class="result-detail-row">📊 价格差异: <span style="color: ${Math.abs(priceDiffPercent) > 15 ? '#f87171' : '#4ade80'}">${diffSymbol}${priceDiffPercent.toFixed(2)}%</span> ${Math.abs(priceDiffPercent) > 15 ? '(超过15%限制)' : '(符合要求)'}</div>
-            <div class="result-detail-row">💰 发送方价格: ${response.rawSenderPrice} ${senderSteamCC}</div>
-            <div class="result-detail-row">💰 接收方价格: ${response.rawRecipientPrice} ${recipientSteamCC}</div>
-            <div class="result-detail-row">🔄 换算后: ${response.rawRecipientPrice} × ${senderRate.toFixed(4)} / ${recipientRate.toFixed(4)} = ${response.convertedRecipientToSender.toFixed(2)} ${senderSteamCC}</div>
+            <div class="result-detail-row">📊 价格差异: <span style="color: ${Math.abs(priceDiffPercent) > 15 ? '#f87171' : '#4ade80'}">${diffSymbol}${-priceDiffPercent.toFixed(2)}%</span> ${Math.abs(priceDiffPercent) > 15 ? '(超过15%限制)' : '(符合要求)'}</div>
+            <div class="result-detail-row">💰 赠送方价格 (${senderCurrencyCode.toUpperCase()}): ${formattedSenderPrice}</div>
+            <div class="result-detail-row">💰 收礼方价格 (${recipientCurrencyCode.toUpperCase()}): ${formattedRecipientPrice}</div>
+            <div class="result-detail-row">🔄 换算后: ${formattedRecipientPrice} × ${senderRate.toFixed(4)} / ${recipientRate.toFixed(4)} = ${formattedConvertedPrice}</div>
         </div>
     `;
     
@@ -91,7 +266,7 @@ function showLoading() {
 function hideLoading() {
     const btn = document.getElementById('checkBtn');
     btn.disabled = false;
-    btn.innerHTML = '<span>🔍</span> 检测当前页面';
+    btn.innerHTML = '<span>🔍</span> 检测该游戏';
 }
 
 function saveCountries() {
@@ -127,13 +302,13 @@ function updateStatusDisplay() {
     const recipientCountry = allCountries.find(c => c.key === recipientSteamCC);
     
     if (senderCountry) {
-        document.getElementById('senderDisplay').textContent = `${senderCountry.name} (${senderCountry.code})`;
+        document.getElementById('senderDisplay').textContent = `${senderCountry.name} (${senderCountry.key.toUpperCase()}) - ${senderCountry.code}`;
     } else {
         document.getElementById('senderDisplay').textContent = '未选择';
     }
     
     if (recipientCountry) {
-        document.getElementById('recipientDisplay').textContent = `${recipientCountry.name} (${recipientCountry.code})`;
+        document.getElementById('recipientDisplay').textContent = `${recipientCountry.name} (${senderCountry.key.toUpperCase()}) - ${recipientCountry.code}`;
     } else {
         document.getElementById('recipientDisplay').textContent = '未选择';
     }
@@ -163,7 +338,7 @@ async function getCurrentSteamCountry(refresh = false) {
             
             // 设置超时
             const timeoutId = setTimeout(() => {
-                console.log('[Popup] 获取国家超时');
+                console.log('[Popup] 获取国家/地区超时');
                 resolve(null);
             }, 5000);
             
@@ -171,16 +346,16 @@ async function getCurrentSteamCountry(refresh = false) {
                 clearTimeout(timeoutId);
                 
                 if (chrome.runtime.lastError) {
-                    console.log('[Popup] 获取当前国家失败:', chrome.runtime.lastError.message);
+                    console.log('[Popup] 获取当前国家/地区失败:', chrome.runtime.lastError.message);
                     resolve(null);
                     return;
                 }
                 
                 if (response && response.success && response.countryCode) {
-                    console.log(`[Popup] 获取到当前国家: ${response.countryCode}`);
+                    console.log(`[Popup] 获取到当前国家/地区: ${response.countryCode}`);
                     resolve(response.countryCode);
                 } else {
-                    console.log('[Popup] 响应中没有国家代码');
+                    console.log('[Popup] 响应中没有国家/地区代码');
                     resolve(null);
                 }
             });
@@ -190,7 +365,7 @@ async function getCurrentSteamCountry(refresh = false) {
 
 // 刷新并显示当前国家，同时清空搜索框
 async function refreshCurrentCountry() {
-    console.log('[Popup] 开始刷新当前国家');
+    console.log('[Popup] 开始刷新当前国家/地区');
     
     const currentCountryText = document.getElementById('currentCountryText');
     currentCountryText.textContent = '获取中...';
@@ -228,7 +403,7 @@ async function refreshCurrentCountry() {
         
         // 获取当前国家
         getCurrentSteamCountry(true).then(currentCountry => {
-            console.log('[Popup] 获取到当前国家:', currentCountry);
+            console.log('[Popup] 获取到当前国家/地区:', currentCountry);
             
             // 清空搜索框
             document.getElementById('senderSearch').value = '';
@@ -251,15 +426,15 @@ async function refreshCurrentCountry() {
                     document.getElementById('senderCountry').value = currentCountry;
                     updateStatusDisplay();
                     saveCountries();
-                    showError(`已将发送方设置为 ${countryName}`, true);
-                    console.log(`[Popup] 自动设置发送方为: ${currentCountry}`);
+                    showError(`已将赠送方设置为 ${countryName}`, true);
+                    console.log(`[Popup] 自动设置赠送方为: ${currentCountry}`);
                 } else {
                     currentCountryText.textContent = `${currentCountry.toUpperCase()} (不支持)`;
-                    showError(`当前地区 ${currentCountry.toUpperCase()} 不在支持列表中，请手动选择发送方国家`);
+                    showError(`当前国家/地区 ${currentCountry.toUpperCase()} 不在支持列表中，请手动选择赠送方国家/地区`);
                 }
             } else {
                 currentCountryText.textContent = '无法获取，请刷新页面';
-                showError('无法获取当前地区，请确保在 Steam 商店页面或 SteamDB 页面');
+                showError('无法获取当前国家/地区，请确保在 Steam 商店页面或 SteamDB 页面');
             }
         });
     });
@@ -286,7 +461,7 @@ function renderSelect(selectElement, filterTerm) {
     selectElement.innerHTML = '';
     
     for (const country of filtered) {
-        const displayName = `${country.name} (${country.code})`;
+        const displayName = `${country.name} (${country.key.toUpperCase()}) - ${country.code}`;
         const option = new Option(displayName, country.key);
         selectElement.add(option);
     }
@@ -336,9 +511,9 @@ function populateCountrySelects() {
     renderSelect(recipientSelect, '');
 }
 
-// 对调国家 - 修复版
+// 对调国家
 function swapCountries() {
-    console.log('=== 对调国家开始 ===');
+    console.log('=== 对调国家/地区开始 ===');
     
     const senderSelect = document.getElementById('senderCountry');
     const recipientSelect = document.getElementById('recipientCountry');
@@ -349,10 +524,10 @@ function swapCountries() {
     const senderValue = senderSelect.value;
     const recipientValue = recipientSelect.value;
     
-    console.log(`对调前 - 发送方: ${senderValue}, 接收方: ${recipientValue}`);
+    console.log(`对调前 - 赠送方: ${senderValue}, 收礼方: ${recipientValue}`);
     
     if (!senderValue || !recipientValue) {
-        showError('请先选择发送方和接收方国家');
+        showError('请先选择赠送方和收礼方国家/地区');
         return;
     }
     
@@ -375,7 +550,7 @@ function swapCountries() {
     recipientSelect.value = senderValue;
     
     // 验证设置是否成功
-    console.log(`对调后 - 发送方: ${senderSelect.value}, 接收方: ${recipientSelect.value}`);
+    console.log(`对调后 - 赠送方: ${senderSelect.value}, 收礼方: ${recipientSelect.value}`);
     
     // 保存设置
     saveCountries();
@@ -388,7 +563,7 @@ function swapCountries() {
     const recipientCountry = allCountries.find(c => c.key === recipientSelect.value);
     // showError(`已对调: ${senderCountry?.name} ↔ ${recipientCountry?.name}`, true);
     
-    console.log('=== 对调国家结束 ===');
+    console.log('=== 对调国家/地区结束 ===');
 }
 
 function getCountryConfigBySteamCC(steamCC) {
@@ -411,7 +586,7 @@ async function loadCountriesFromBackground() {
             if (response && response.success) {
                 resolve(response.countries);
             } else {
-                reject(new Error('获取国家列表失败'));
+                reject(new Error('获取国家/地区列表失败'));
             }
         });
     });
@@ -474,7 +649,7 @@ async function loadCountries() {
                 const countryExists = allCountries.some(c => c.key === currentCountry);
                 if (countryExists) {
                     document.getElementById('senderCountry').value = currentCountry;
-                    console.log(`自动选择当前 Steam 国家作为发送方: ${currentCountry}`);
+                    console.log(`自动选择当前 Steam 国家/地区作为赠送方: ${currentCountry}`);
                     saveCountries();
                 }
             }
@@ -485,10 +660,10 @@ async function loadCountries() {
         // 显示当前国家
         await refreshCurrentCountry();
         
-        console.log('国家列表加载完成，共', allCountries.length, '个国家');
+        console.log('国家/地区列表加载完成，共', allCountries.length, '个国家/地区');
     } catch (error) {
         console.error('Error loading countries:', error);
-        showError('网络错误，无法加载国家列表');
+        showError('网络错误，无法加载国家/地区列表');
     }
 }
 
@@ -501,10 +676,10 @@ document.getElementById('checkBtn').addEventListener('click', async () => {
     const senderSteamCC = document.getElementById('senderCountry').value;
     const recipientSteamCC = document.getElementById('recipientCountry').value;
     
-    console.log(`发送方: ${senderSteamCC}, 接收方: ${recipientSteamCC}`);
+    console.log(`赠送方: ${senderSteamCC}, 收礼方: ${recipientSteamCC}`);
     
     if (!senderSteamCC || !recipientSteamCC) {
-        showError('请选择发送方国家和接收方国家');
+        showError('请选择赠送方国家/地区和收礼方国家/地区');
         return;
     }
     
@@ -514,11 +689,11 @@ document.getElementById('checkBtn').addEventListener('click', async () => {
     const senderRate = exchangeRates[senderConfig.currencyCode];
     const recipientRate = exchangeRates[recipientConfig.currencyCode];
     
-    console.log(`发送方汇率 (${senderConfig.currencyCode}): ${senderRate}`);
-    console.log(`接收方汇率 (${recipientConfig.currencyCode}): ${recipientRate}`);
+    console.log(`赠送方汇率 (${senderConfig.currencyCode}): ${senderRate}`);
+    console.log(`收礼方汇率 (${recipientConfig.currencyCode}): ${recipientRate}`);
     
     if (!senderRate || !recipientRate) {
-        showError(`无效的国家选择: ${senderConfig.currencyCode} 或 ${recipientConfig.currencyCode}`);
+        showError(`无效国家/地区选择: ${senderConfig.currencyCode} 或 ${recipientConfig.currencyCode}`);
         return;
     }
     
