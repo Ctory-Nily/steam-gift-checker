@@ -243,7 +243,7 @@ function showResultInStatusArea(canGift, response, senderSteamCC, recipientSteam
         <div class="result-status ${statusClass}">${statusText}</div>
         ${response.failReason ? `<div style="font-size: 11px; color: #f87171; margin-bottom: 8px;">⚠️ ${response.failReason}</div>` : ''}
         <div class="result-detail">
-            <div class="result-detail-row">📊 价格差异: <span style="color: ${Math.abs(priceDiffPercent) > 15 ? '#f87171' : '#4ade80'}">${diffSymbol}${-priceDiffPercent.toFixed(2)}%</span> ${Math.abs(priceDiffPercent) > 15 ? '(超过15%限制)' : '(符合要求)'}</div>
+            <div class="result-detail-row">📊 价格差异: <span style="color: ${Math.abs(priceDiffPercent) > 15 ? '#f87171' : '#4ade80'}">${diffSymbol}${-(Math.floor(priceDiffPercent * 10000) / 10000).toFixed(4)}%</span> ${Math.abs(priceDiffPercent) > 15 ? '(超过15%限制)' : '(符合要求)'}</div>
             <div class="result-detail-row">💰 赠送方价格 (${senderCurrencyCode.toUpperCase()}): ${formattedSenderPrice}</div>
             <div class="result-detail-row">💰 收礼方价格 (${recipientCurrencyCode.toUpperCase()}): ${formattedRecipientPrice}</div>
             <div class="result-detail-row">🔄 换算后: ${formattedRecipientPrice} × ${senderRate.toFixed(4)} / ${recipientRate.toFixed(4)} = ${formattedConvertedPrice}</div>

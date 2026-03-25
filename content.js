@@ -473,7 +473,7 @@ async function checkGiftability(params, pageInfo) {
     const priceDiff = calculatePriceDifference(senderPrice, recipientPrice, senderRate, recipientRate);
     const canGift = priceDiff.isAcceptable;
     
-    console.log(`价格差异: ${priceDiff.percentage.toFixed(2)}%`);
+    console.log(`价格差异: ${(Math.floor(priceDiff.percentage * 10000) / 10000).toFixed(4)}%`);
     console.log(`可以赠送: ${canGift ? '✅ 是' : '❌ 否'}`);
     
     return {
@@ -491,7 +491,7 @@ async function checkGiftability(params, pageInfo) {
         appId: id,
         pageType: pageInfo.type,
         isFreeGame: false,
-        failReason: priceDiff.isAcceptable ? null : `价格差异 ${Math.abs(priceDiff.percentage).toFixed(2)}% > 15%`
+        failReason: priceDiff.isAcceptable ? null : `价格差异 ${(Math.floor(Math.abs(priceDiff.percentage) * 10000) / 10000).toFixed(4)}% > 15%`
     };
 }
 
