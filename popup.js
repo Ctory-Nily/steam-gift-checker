@@ -388,6 +388,9 @@ async function refreshCurrentCountry(silent = false) {
     const currentCountryText = document.getElementById('currentCountryText');
     currentCountryText.textContent = '获取中...';
     
+    // 清空检测结果
+    hideResultInStatusArea();
+
     // 清空搜索框
     const senderSearch = document.getElementById('senderSearch');
     const recipientSearch = document.getElementById('recipientSearch');
@@ -1224,9 +1227,12 @@ document.getElementById('recipientSearch').addEventListener('click', (e) => {
 
 document.getElementById('swapBtn').addEventListener('click', swapCountries);
 document.getElementById('closeErrorBtn').addEventListener('click', hideError);
-// 刷新按钮点击事件 - 非静默模式
+// 刷新按钮点击事件
 document.getElementById('refreshCountryBtn').addEventListener('click', () => {
-    refreshCurrentCountry(false);  // false = 显示提示
+    // 清空检测结果
+    hideResultInStatusArea();
+    // 执行刷新
+    refreshCurrentCountry(false);
 });
 
 // 监听下拉框变化
