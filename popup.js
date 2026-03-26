@@ -13,26 +13,24 @@ let isInitialized = false;
 function showError(message, isSuccess = false) {
     const errorContainer = document.getElementById('errorContainer');
     const errorMessage = document.getElementById('errorMessage');
+    const errorContent = errorContainer.querySelector('.error-content');
     
     if (isSuccess) {
-        const errorContent = errorContainer.querySelector('.error-content');
-        errorContent.style.background = 'rgba(88, 211, 133, 0.95)';
+        errorContent.classList.add('success');
+        errorContent.style.background = 'rgba(74, 222, 128, 0.65)';
         errorContent.style.borderLeftColor = '#4ade80';
     } else {
-        const errorContent = errorContainer.querySelector('.error-content');
-        errorContent.style.background = 'rgba(220, 53, 69, 0.95)';
+        errorContent.classList.remove('success');
+        errorContent.style.background = 'rgba(220, 53, 69, 0.65)';
         errorContent.style.borderLeftColor = '#ff6b6b';
     }
     
     errorMessage.textContent = message;
     errorContainer.style.display = 'block';
-    errorContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     
     setTimeout(() => {
         if (errorContainer.style.display === 'block') {
             errorContainer.style.display = 'none';
-            errorContainer.style.background = '';
-            errorContainer.style.borderLeftColor = '';
         }
     }, 5000);
 }
@@ -455,55 +453,71 @@ function getSearchKeyword(inputElement) {
     return inputElement.value.trim().toLowerCase();
 }
 
-// 过滤国家列表
+// 过滤国家列表 
 function filterCountries(searchTerm) {
-    if (!searchTerm) return allCountries;
-    const term = searchTerm.toLowerCase();
-    return allCountries.filter(c => 
+    if (!searchTerm || searchTerm === '') {
+        return allCountries;
+    }
+    const term = searchTerm.toLowerCase().trim();
+    const results = allCountries.filter(c => 
         c.name.toLowerCase().includes(term) || 
         c.code.toLowerCase().includes(term)
     );
+    console.log(`filterCountries("${searchTerm}") 返回 ${results.length} 个结果:`, results.map(c => c.name));
+    return results;
 }
 
 // 渲染下拉框
 function renderSelect(selectElement, filterTerm, isExpanded) {
     const currentValue = selectElement.getAttribute('data-value') || selectElement.value;
-    let filtered = filterCountries(filterTerm);
+    
+    // 处理 filterTerm：空字符串或 undefined 时显示全部
+    let searchTerm = '';
+    if (filterTerm && filterTerm !== '') {
+        searchTerm = filterTerm.toString();
+    }
+    
+    let filtered = filterCountries(searchTerm);
+    
+    console.log('=== renderSelect ===');
+    console.log('filterTerm:', searchTerm);
+    console.log('filtered 数量:', filtered.length);
+    console.log('isExpanded:', isExpanded);
     
     selectElement.innerHTML = '';
     
     if (isExpanded) {
         // 展开状态
-        // 判断是否有搜索结果
-        const hasResults = filtered.length > 0;
-        
-        if (!hasResults) {
-            // 搜索不到内容时，显示"请选择国家/地区"选项
-            const noResultOption = new Option('请选择国家/地区', '');
+        if (searchTerm !== '' && filtered.length === 0) {
+            // 有搜索词但没找到结果
+            const noResultOption = new Option('未找到匹配的国家', '');
             selectElement.add(noResultOption);
+            selectElement.value = '';
         } else {
-            // 有搜索结果
-            if (!filterTerm) {
-                // 无搜索词：显示"请选择国家/地区"
+            // 有搜索结果或无搜索词（显示全部）
+            if (searchTerm === '') {
+                // 无搜索词时，显示"请选择国家/地区"作为第一个选项
                 const placeholderOption = new Option('请选择国家/地区', '');
                 selectElement.add(placeholderOption);
             }
             
             // 添加所有国家选项
             for (const country of filtered) {
-                const option = new Option(`${country.name} (${country.key.toUpperCase()}) - ${country.code}`, country.key);
+                const option = new Option(`${country.name} (${country.code})`, country.key);
                 selectElement.add(option);
             }
         }
         
         // 设置选中的值
         if (currentValue && filtered.some(c => c.key === currentValue)) {
-            // 有当前值且在列表中，保持选中
+            // 有已选中的值且在列表中，保持选中
             selectElement.value = currentValue;
-        } else if (filterTerm && filtered.length > 0) {
-            // 有搜索词且有结果，自动选中第一个
+            console.log('恢复选中值:', currentValue);
+        } else if (searchTerm !== '' && filtered.length > 0) {
+            // 有搜索词且有结果，自动选中第一个匹配项
             selectElement.value = filtered[0].key;
             selectElement.setAttribute('data-value', filtered[0].key);
+            console.log('自动选中第一个匹配项:', filtered[0].key, filtered[0].name);
         } else {
             selectElement.value = '';
         }
@@ -511,7 +525,7 @@ function renderSelect(selectElement, filterTerm, isExpanded) {
         // 收起状态：只显示当前选中的国家或占位符
         if (currentValue && allCountries.some(c => c.key === currentValue)) {
             const selectedCountry = allCountries.find(c => c.key === currentValue);
-            const displayText = `${selectedCountry.name} (${selectedCountry.key.toUpperCase()}) - ${selectedCountry.code}`;
+            const displayText = `${selectedCountry.name} (${selectedCountry.code})`;
             const option = new Option(displayText, currentValue);
             selectElement.add(option);
             selectElement.value = currentValue;
@@ -617,80 +631,148 @@ function initSelectBehavior() {
     const senderSearch = document.getElementById('senderSearch');
     const recipientSearch = document.getElementById('recipientSearch');
     
-    // 点击下拉框时展开/收起 - 使用 click 事件
+    // 点击下拉框时展开/收起 - 修复版
     senderSelect.addEventListener('click', (e) => {
         e.stopPropagation();
         
+        const searchInput = document.getElementById('senderSearch');
+        const currentSearchTerm = searchInput ? searchInput.value : '';
+        
+        console.log('点击发送方下拉框, 当前搜索词:', currentSearchTerm);
+
+        // 获取当前展开状态
+        const isCurrentlyExpanded = senderSelect.classList.contains('expanded');
+
         if (senderSelect.classList.contains('expanded')) {
-            senderSelect.classList.remove('expanded');
-            renderSelect(senderSelect, '', false);
+            // 已经展开，不做任何操作，或者刷新显示
+            renderSelect(senderSelect, currentSearchTerm, true);  // 重新渲染，保持展开
         } else {
+            // 收起状态才展开
             closeAllSelects();
             senderSelect.classList.add('expanded');
-            renderSelect(senderSelect, senderFilterTerm, true);
+            renderSelect(senderSelect, currentSearchTerm, true);
         }
     });
-    
+
     recipientSelect.addEventListener('click', (e) => {
         e.stopPropagation();
         
-        if (recipientSelect.classList.contains('expanded')) {
-            recipientSelect.classList.remove('expanded');
-            renderSelect(recipientSelect, '', false);
+        const searchInput = document.getElementById('recipientSearch');
+        const currentSearchTerm = searchInput ? searchInput.value : '';
+        
+        console.log('点击接收方下拉框, 当前搜索词:', currentSearchTerm);
+
+        // 获取当前展开状态
+        const isCurrentlyExpanded = recipientSelect.classList.contains('expanded');
+        
+        if (senderSelect.classList.contains('expanded')) {
+            // 已经展开，不做任何操作，或者刷新显示
+            renderSelect(senderSelect, currentSearchTerm, true);  // 重新渲染，保持展开
         } else {
+            // 收起状态才展开
             closeAllSelects();
-            recipientSelect.classList.add('expanded');
-            renderSelect(recipientSelect, recipientFilterTerm, true);
+            senderSelect.classList.add('expanded');
+            renderSelect(senderSelect, currentSearchTerm, true);
         }
     });
-    
+
     // 点击搜索框时展开
     senderSearch.addEventListener('click', (e) => {
         e.stopPropagation();
-        closeAllSelects();
-        senderSelect.classList.add('expanded');
-        renderSelect(senderSelect, senderFilterTerm, true);
+        
+        const currentSearchTerm = senderSearch.value;
+        senderFilterTerm = currentSearchTerm;
+        console.log('点击发送方搜索框, 当前搜索词:', currentSearchTerm);
+        
+        const senderSelect = document.getElementById('senderCountry');
+        const isExpanded = senderSelect.classList.contains('expanded');
+        
+        if (!isExpanded) {
+            closeAllSelects();
+            senderSelect.classList.add('expanded');
+            renderSelect(senderSelect, currentSearchTerm, true);
+        }
     });
-    
+
     recipientSearch.addEventListener('click', (e) => {
         e.stopPropagation();
-        closeAllSelects();
-        recipientSelect.classList.add('expanded');
-        renderSelect(recipientSelect, recipientFilterTerm, true);
-    });
-    
-    // 搜索框输入时实时过滤
-    senderSearch.addEventListener('input', () => {
-        senderFilterTerm = senderSearch.value;
-        if (senderSelect.classList.contains('expanded')) {
-            renderSelect(senderSelect, senderFilterTerm, true);
+        
+        const currentSearchTerm = recipientSearch.value;
+        recipientFilterTerm = currentSearchTerm;
+        console.log('点击接收方搜索框, 当前搜索词:', currentSearchTerm);
+        
+        const recipientSelect = document.getElementById('recipientCountry');
+        const isExpanded = recipientSelect.classList.contains('expanded');
+        
+        if (!isExpanded) {
+            closeAllSelects();
+            recipientSelect.classList.add('expanded');
+            renderSelect(recipientSelect, currentSearchTerm, true);
         }
     });
     
-    recipientSearch.addEventListener('input', () => {
-        recipientFilterTerm = recipientSearch.value;
+    // 搜索框输入事件
+    senderSearch.addEventListener('input', (e) => {
+        const currentSearchTerm = e.target.value;
+        senderFilterTerm = currentSearchTerm;
+        console.log('发送方搜索框输入:', currentSearchTerm);
+        
+        const senderSelect = document.getElementById('senderCountry');
+        if (senderSelect.classList.contains('expanded')) {
+            // 展开状态时实时更新显示，并自动选中第一个匹配项
+            renderSelect(senderSelect, currentSearchTerm, true);
+        }
+    });
+
+    recipientSearch.addEventListener('input', (e) => {
+        const currentSearchTerm = e.target.value;
+        recipientFilterTerm = currentSearchTerm;
+        console.log('接收方搜索框输入:', currentSearchTerm);
+        
+        const recipientSelect = document.getElementById('recipientCountry');
         if (recipientSelect.classList.contains('expanded')) {
-            renderSelect(recipientSelect, recipientFilterTerm, true);
+            renderSelect(recipientSelect, currentSearchTerm, true);
         }
     });
     
     // 选择选项后保存并关闭
     senderSelect.addEventListener('change', () => {
         const selectedValue = senderSelect.value;
-        if (selectedValue && selectedValue !== '') {
+        console.log('发送方 change 事件, 选中值:', selectedValue);
+        
+        if (!selectedValue || selectedValue === '') {
+            // 选择了"请选择国家/地区"
+            showError('请选择一个有效的国家/地区');
+            // 恢复之前的值
+            const previousValue = senderSelect.getAttribute('data-value') || '';
+            if (previousValue) {
+                senderSelect.value = previousValue;
+            }
+        } else {
+            // 选择了有效国家
             senderSelect.setAttribute('data-value', selectedValue);
             saveCountries();
         }
+        
         senderSelect.classList.remove('expanded');
         renderSelect(senderSelect, '', false);
     });
-    
+
     recipientSelect.addEventListener('change', () => {
         const selectedValue = recipientSelect.value;
-        if (selectedValue && selectedValue !== '') {
+        console.log('接收方 change 事件, 选中值:', selectedValue);
+        
+        if (!selectedValue || selectedValue === '') {
+            showError('请选择一个有效的国家/地区');
+            const previousValue = recipientSelect.getAttribute('data-value') || '';
+            if (previousValue) {
+                recipientSelect.value = previousValue;
+            }
+        } else {
             recipientSelect.setAttribute('data-value', selectedValue);
             saveCountries();
         }
+        
         recipientSelect.classList.remove('expanded');
         renderSelect(recipientSelect, '', false);
     });
@@ -713,14 +795,14 @@ function closeAllSelects() {
     const senderSelect = document.getElementById('senderCountry');
     const recipientSelect = document.getElementById('recipientCountry');
     
-    if (senderSelect) {
+    if (senderSelect && senderSelect.classList.contains('expanded')) {
         senderSelect.classList.remove('expanded');
-        // 关闭时更新显示
-        updateSelectDisplay(senderSelect);
+        // 关闭时渲染为收起状态，但保留搜索词用于下次展开
+        renderSelect(senderSelect, '', false);
     }
-    if (recipientSelect) {
+    if (recipientSelect && recipientSelect.classList.contains('expanded')) {
         recipientSelect.classList.remove('expanded');
-        updateSelectDisplay(recipientSelect);
+        renderSelect(recipientSelect, '', false);
     }
 }
 
@@ -1110,6 +1192,7 @@ document.getElementById('senderSearch').addEventListener('input', (e) => {
     senderFilterTerm = e.target.value;
     const senderSelect = document.getElementById('senderCountry');
     if (senderSelect.classList.contains('expanded')) {
+        // 展开状态时实时更新显示
         renderSelect(senderSelect, senderFilterTerm, true);
     }
 });

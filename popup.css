@@ -11,7 +11,9 @@ body {
     color: #eee;
 }
 
+/* 确保容器有相对定位 */
 .container {
+    position: relative;
     padding: 16px;
 }
 
@@ -343,6 +345,7 @@ body {
     animation: slideIn 0.3s ease;
 }
 
+/* 错误提示内容 - 可点击关闭 */
 .error-content {
     background: rgba(220, 53, 69, 0.95);
     border-left: 4px solid #ff6b6b;
@@ -353,6 +356,7 @@ body {
     gap: 10px;
     backdrop-filter: blur(8px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    pointer-events: auto;  /* 让关闭按钮可点击 */
 }
 
 .error-icon {
@@ -368,15 +372,16 @@ body {
     word-break: break-word;
 }
 
+/* 关闭按钮 */
 .close-error-btn {
     background: rgba(255,255,255,0.2);
     border: none;
     color: white;
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -411,16 +416,14 @@ body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-/* .status-area {
-    position: sticky;
-    top: 52px;  
-    z-index: 99;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(8px);
-}
-
+/* 错误提示容器 - 绝对定位，不影响布局 */
 .error-container {
-    position: sticky;
-    top: 172px;  
-    z-index: 98;
-} */
+    position: absolute;
+    top: 135px;  /* 根据检测按钮高度调整 */
+    left: 16px;
+    right: 16px;
+    z-index: 200;
+    margin: 0;
+    animation: slideIn 0.3s ease;
+    pointer-events: none;  /* 让提示不干扰点击 */
+}

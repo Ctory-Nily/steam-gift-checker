@@ -17,7 +17,16 @@
         <button id="checkBtn" class="check-button">
             <span>🔍</span> 检测该游戏
         </button>
-        
+
+        <!-- 错误提示 -->
+        <div id="errorContainer" class="error-container" style="display: none;">
+            <div class="error-content">
+                <span class="error-icon">💡</span>
+                <span id="errorMessage" class="error-message"></span>
+                <button id="closeErrorBtn" class="close-error-btn">✕</button>
+            </div>
+        </div>
+
         <!-- 状态显示区域 - 包含检测结果 -->
         <div id="statusArea" class="status-area">
             <div class="status-row">
@@ -37,15 +46,6 @@
             <div id="resultArea" class="result-area" style="display: none;">
                 <div class="result-divider"></div>
                 <div id="resultContent"></div>
-            </div>
-        </div>
-        
-        <!-- 错误提示 -->
-        <div id="errorContainer" class="error-container" style="display: none;">
-            <div class="error-content">
-                <span class="error-icon">💡</span>
-                <span id="errorMessage" class="error-message"></span>
-                <button id="closeErrorBtn" class="close-error-btn">✕</button>
             </div>
         </div>
         
@@ -78,7 +78,7 @@
         </div>
         
         <div class="footer">
-            <span class="version">v1.2.4</span>
+            <span class="version">v1.2.5</span>
         </div>
     </div>
     
