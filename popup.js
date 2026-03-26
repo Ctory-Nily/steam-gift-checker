@@ -668,14 +668,14 @@ function initSelectBehavior() {
         // 获取当前展开状态
         const isCurrentlyExpanded = recipientSelect.classList.contains('expanded');
         
-        if (senderSelect.classList.contains('expanded')) {
+        if (recipientSelect.classList.contains('expanded')) {
             // 已经展开，不做任何操作，或者刷新显示
-            renderSelect(senderSelect, currentSearchTerm, true);  // 重新渲染，保持展开
+            renderSelect(recipientSelect, currentSearchTerm, true);
         } else {
             // 收起状态才展开
             closeAllSelects();
-            senderSelect.classList.add('expanded');
-            renderSelect(senderSelect, currentSearchTerm, true);
+            recipientSelect.classList.add('expanded');
+            renderSelect(recipientSelect, currentSearchTerm, true);
         }
     });
 
