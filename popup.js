@@ -506,7 +506,7 @@ function renderSelect(selectElement, filterTerm, isExpanded) {
             
             // 添加所有国家选项
             for (const country of filtered) {
-                const option = new Option(`${country.name} (${country.code})`, country.key);
+                const option = new Option(`${country.name} (${country.key.toUpperCase()}) - ${country.code}`, country.key);
                 selectElement.add(option);
             }
         }
@@ -528,7 +528,7 @@ function renderSelect(selectElement, filterTerm, isExpanded) {
         // 收起状态：只显示当前选中的国家或占位符
         if (currentValue && allCountries.some(c => c.key === currentValue)) {
             const selectedCountry = allCountries.find(c => c.key === currentValue);
-            const displayText = `${selectedCountry.name} (${selectedCountry.code})`;
+            const displayText = `${selectedCountry.name} (${selectedCountry.key.toUpperCase()}) - ${selectedCountry.code}`;
             const option = new Option(displayText, currentValue);
             selectElement.add(option);
             selectElement.value = currentValue;
