@@ -16,11 +16,9 @@ function showError(message, isSuccess = false) {
     const errorContent = errorContainer.querySelector('.error-content');
     
     if (isSuccess) {
-        errorContent.classList.add('success');
         errorContent.style.background = 'rgba(74, 222, 128, 0.65)';
         errorContent.style.borderLeftColor = '#4ade80';
     } else {
-        errorContent.classList.remove('success');
         errorContent.style.background = 'rgba(220, 53, 69, 0.65)';
         errorContent.style.borderLeftColor = '#ff6b6b';
     }

@@ -427,3 +427,22 @@ body {
     animation: slideIn 0.3s ease;
     pointer-events: none;  /* 让提示不干扰点击 */
 }
+
+/* 隐藏整个弹窗的滚动条 */
+body {
+    -ms-overflow-style: none;
+}
+
+body::-webkit-scrollbar {
+    display: none;
+}
+
+/* 或者只隐藏下拉框的滚动条 */
+.country-select {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.country-select::-webkit-scrollbar {
+    display: none;
+}
