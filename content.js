@@ -1,5 +1,274 @@
 // 内容脚本 - content.js
 
+// 获取 bundle 页面中的所有游戏（SteamDB 版本）
+function getBundleGames() {
+    const games = [];
+    try {
+        console.log('[Content] 开始获取 SteamDB bundle 游戏列表...');
+        
+        // 使用 XPath 获取表格行 - 使用 #apps 而不是 #subs
+        const xpath = '//*[@id="apps"]/div/table/tbody/tr';
+        const rows = document.evaluate(
+            xpath,
+            document,
+            null,
+            XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
+            null
+        );
+        
+        console.log(`[Content] XPath 找到 ${rows.snapshotLength} 个游戏行`);
+        
+        for (let i = 0; i < rows.snapshotLength; i++) {
+            const row = rows.snapshotItem(i);
+            const appId = row.getAttribute('data-appid');
+            
+            if (appId) {
+                // 获取游戏名称 - 使用正确的 XPath 获取第3列 (td[3])
+                const nameXpath = './/td[3]';
+                const nameCell = document.evaluate(
+                    nameXpath,
+                    row,
+                    null,
+                    XPathResult.FIRST_ORDERED_NODE_TYPE,
+                    null
+                ).singleNodeValue;
+                
+                let name = '';
+                if (nameCell) {
+                    // 尝试获取链接内的文本
+                    const link = nameCell.querySelector('a');
+                    name = link ? link.innerText.trim() : nameCell.innerText.trim();
+                }
+                
+                games.push({
+                    appId: appId,
+                    name: name || `游戏 ${appId}`,
+                    rowIndex: i + 1
+                });
+            }
+        }
+        
+        // 如果方法1没找到，尝试备用方法：使用 #apps table 的 CSS 选择器
+        if (games.length === 0) {
+            console.log('[Content] XPath 方法未找到，尝试备用方法: #apps table');
+            const appsRows = document.querySelectorAll('#apps table tbody tr');
+            console.log(`[Content] 找到 ${appsRows.length} 个游戏行`);
+            
+            appsRows.forEach(row => {
+                const appId = row.getAttribute('data-appid');
+                if (appId) {
+                    const cells = row.querySelectorAll('td');
+                    let name = '';
+                    if (cells.length > 2) {
+                        const nameCell = cells[2];  // 第3列，索引从0开始
+                        const link = nameCell.querySelector('a');
+                        name = link ? link.innerText.trim() : nameCell.innerText.trim();
+                    }
+                    
+                    games.push({
+                        appId: appId,
+                        name: name || `游戏 ${appId}`,
+                        source: 'apps-table'
+                    });
+                }
+            });
+        }
+        
+        // 如果还是没找到，尝试 [data-ds-appid]
+        if (games.length === 0) {
+            console.log('[Content] 尝试方法3: [data-ds-appid]');
+            const dsElements = document.querySelectorAll('[data-ds-appid]');
+            dsElements.forEach(el => {
+                const appId = el.getAttribute('data-ds-appid');
+                if (appId) {
+                    const nameElement = el.querySelector('.tab_item_name');
+                    const name = nameElement ? nameElement.innerText.trim() : '';
+                    games.push({
+                        appId: appId,
+                        name: name || `游戏 ${appId}`,
+                        source: 'data-ds-appid'
+                    });
+                }
+            });
+        }
+        
+        // 去重
+        const uniqueGames = [];
+        const seenIds = new Set();
+        for (const game of games) {
+            if (!seenIds.has(game.appId)) {
+                seenIds.add(game.appId);
+                uniqueGames.push(game);
+            }
+        }
+        
+        console.log(`[Content] 最终获取到 ${uniqueGames.length} 个游戏:`, uniqueGames);
+        return uniqueGames;
+    } catch (error) {
+        console.error('[Content] 获取 bundle 游戏失败:', error);
+        return [];
+    }
+}
+
+// 使用精确 XPath 获取 bundle 游戏
+function getBundleGamesPrecise() {
+    const games = [];
+    try {
+        console.log('[Content] 使用精确 XPath 获取 bundle 游戏列表...');
+        
+        // 获取所有行 - 使用 #apps
+        const rowsXpath = '//*[@id="apps"]/div/table/tbody/tr';
+        const rows = document.evaluate(
+            rowsXpath,
+            document,
+            null,
+            XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
+            null
+        );
+        
+        for (let i = 0; i < rows.snapshotLength; i++) {
+            const row = rows.snapshotItem(i);
+            const appId = row.getAttribute('data-appid');
+            
+            if (appId) {
+                // 获取第3列（名称列）- td[3]
+                const nameXpath = './/td[3]';
+                const nameCell = document.evaluate(
+                    nameXpath,
+                    row,
+                    null,
+                    XPathResult.FIRST_ORDERED_NODE_TYPE,
+                    null
+                ).singleNodeValue;
+                
+                let name = '';
+                if (nameCell) {
+                    const link = nameCell.querySelector('a');
+                    name = link ? link.innerText.trim() : nameCell.innerText.trim();
+                }
+                
+                games.push({
+                    appId: appId,
+                    name: name || `游戏 ${appId}`,
+                    rowIndex: i + 1
+                });
+            }
+        }
+        
+        console.log(`[Content] 精确 XPath 获取到 ${games.length} 个游戏`);
+        return games;
+    } catch (error) {
+        console.error('[Content] 精确 XPath 获取失败:', error);
+        return [];
+    }
+}
+
+// 获取 bundle 页面中的所有游戏 - 使用精确 XPath
+function getBundleGamesPrecise() {
+    const games = [];
+    try {
+        console.log('[Content] 使用精确 XPath 获取 bundle 游戏列表...');
+        
+        // 获取所有行
+        const rowsXpath = '//*[@id="apps"]/div/table/tbody/tr[1]/td[3]';
+        const rows = document.evaluate(
+            rowsXpath,
+            document,
+            null,
+            XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
+            null
+        );
+        
+        for (let i = 0; i < rows.snapshotLength; i++) {
+            const row = rows.snapshotItem(i);
+            const appId = row.getAttribute('data-appid');
+            
+            if (appId) {
+                // 获取第2列（名称列）的文本
+                const nameXpath = './/td[2]';
+                const name = getXPathText(nameXpath, row);
+                
+                games.push({
+                    appId: appId,
+                    name: name || `游戏 ${appId}`,
+                    rowIndex: i + 1
+                });
+            }
+        }
+        
+        console.log(`[Content] 精确 XPath 获取到 ${games.length} 个游戏:`, games);
+        return games;
+    } catch (error) {
+        console.error('[Content] 精确 XPath 获取失败:', error);
+        return [];
+    }
+}
+
+// 检查单个游戏是否满足赠送条件
+async function checkSingleGame(appId, gameName, senderSteamCC, recipientSteamCC, senderRate, recipientRate) {
+    console.log(`[Content] 检查游戏: ${gameName} (${appId})`);
+    
+    try {
+        const { senderPrice, recipientPrice } = await fetchBothPrices('app', appId, senderSteamCC, recipientSteamCC);
+        
+        if (senderPrice === null || recipientPrice === null) {
+            return {
+                appId: appId,
+                name: gameName,
+                canGift: false,
+                error: '价格获取失败',
+                senderPrice: senderPrice,
+                recipientPrice: recipientPrice
+            };
+        }
+        
+        // 计算价格差异
+        const convertedRecipientToSender = recipientPrice * senderRate / recipientRate;
+        const difference = convertedRecipientToSender - senderPrice;
+        const priceDiffPercent = (difference / senderPrice) * 100;
+        const canGift = Math.abs(priceDiffPercent) <= 15;
+        
+        return {
+            appId: appId,
+            name: gameName,
+            canGift: canGift,
+            priceDiffPercent: priceDiffPercent,
+            senderPrice: senderPrice,
+            recipientPrice: recipientPrice,
+            convertedPrice: convertedRecipientToSender
+        };
+    } catch (error) {
+        console.error(`[Content] 检查游戏 ${gameName} 失败:`, error);
+        return {
+            appId: appId,
+            name: gameName,
+            canGift: false,
+            error: error.message
+        };
+    }
+}
+
+// 检查 bundle 中的所有游戏
+async function checkBundleGames(senderSteamCC, recipientSteamCC, senderRate, recipientRate) {
+    const games = getBundleGames();
+    
+    if (games.length === 0) {
+        throw new Error('未找到 bundle 中的游戏信息');
+    }
+    
+    const results = [];
+    for (const game of games) {
+        const result = await checkSingleGame(
+            game.appId, game.name,
+            senderSteamCC, recipientSteamCC,
+            senderRate, recipientRate
+        );
+        results.push(result);
+    }
+    
+    return results;
+}
+
 // 获取当前页面的类型、ID和API类型
 function getPageInfo() {
     const url = window.location.pathname;
@@ -9,7 +278,7 @@ function getPageInfo() {
     if (hostname === 'store.steampowered.com') {
         const bundleMatch = url.match(/\/bundle\/(\d+)(?:\/|$)/);
         if (bundleMatch) {
-            return { type: 'bundle', id: bundleMatch[1], error: '捆绑包暂不支持检测', apiType: null, source: 'steam' };
+            return { type: 'bundle', id: bundleMatch[1], error: null, apiType: 'bundle', source: 'steam' };
         }
         
         const subMatch = url.match(/\/sub\/(\d+)(?:\/|$)/);
@@ -28,7 +297,7 @@ function getPageInfo() {
         // bundle 页面 - 不支持检测，但可以获取地区
         const bundleMatch = url.match(/\/bundle\/(\d+)(?:\/|$)/);
         if (bundleMatch) {
-            return { type: 'bundle', id: bundleMatch[1], error: '捆绑包暂不支持检测', apiType: null, source: 'steamdb' };
+            return { type: 'bundle', id: bundleMatch[1], error: null, apiType: 'bundle', source: 'steamdb' };
         }
         
         const appMatch = url.match(/\/app\/(\d+)(?:\/|$)/);
@@ -269,7 +538,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             return true;
         }
         
-        if (pageInfo.type !== 'app' && pageInfo.type !== 'sub') {
+        if (pageInfo.type !== 'app' && pageInfo.type !== 'sub' && pageInfo.type !== 'bundle') {
             console.log('[Content] 不支持的页面类型:', pageInfo.type);
             sendResponse({ error: `暂不支持此页面类型: ${pageInfo.type}` });
             return true;
@@ -400,9 +669,70 @@ async function checkGiftability(params, pageInfo) {
     const { senderCode, recipientCode, senderRate, recipientRate } = params;
     
     console.log('=== Steam 礼物检测开始 ===');
-    console.log(`页面来源: ${pageInfo.source}, 类型: ${pageInfo.type}, ID: ${pageInfo.id}`);
-    console.log(`赠送方 Steam CC: ${senderCode}, 汇率: ${senderRate}`);
-    console.log(`收礼方 Steam CC: ${recipientCode}, 汇率: ${recipientRate}`);
+    console.log(`发送方 Steam CC: ${senderCode}, 汇率: ${senderRate}`);
+    console.log(`接收方 Steam CC: ${recipientCode}, 汇率: ${recipientRate}`);
+    
+    // 检查是否支持该页面类型
+    if (pageInfo.error) {
+        throw new Error(pageInfo.error);
+    }
+    
+    // 处理 bundle 页面
+    if (pageInfo.type === 'bundle') {
+        console.log('检测到 bundle 页面，开始检查包内所有游戏');
+        
+        // 优先使用精确 XPath 方法
+        let games = getBundleGamesPrecise();
+        
+        // 如果精确方法没找到，使用备用方法
+        if (games.length === 0) {
+            console.log('[Content] 精确方法未找到，使用备用方法');
+            games = getBundleGames();
+        }
+        
+        if (games.length === 0) {
+            throw new Error('未找到 bundle 中的游戏信息，请确保在正确的 bundle 页面');
+        }
+        
+        const results = [];
+        for (const game of games) {
+            const result = await checkSingleGame(
+                game.appId, game.name,
+                senderCode, recipientCode,
+                senderRate, recipientRate
+            );
+            results.push(result);
+            
+            // 添加延迟避免请求过快
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        // 统计结果
+        const canGiftCount = results.filter(r => r.canGift === true).length;
+        const cannotGiftCount = results.filter(r => r.canGift === false && !r.error).length;
+        const errorCount = results.filter(r => r.error).length;
+        
+        return {
+            type: 'bundle',
+            results: results,
+            canGift: canGiftCount > 0,
+            summary: {
+                total: results.length,
+                canGift: canGiftCount,
+                cannotGift: cannotGiftCount,
+                error: errorCount
+            },
+            senderSteamCC: senderCode,
+            recipientSteamCC: recipientCode,
+            senderRate: senderRate,
+            recipientRate: recipientRate
+        };
+    }
+    
+    // 处理 app 和 sub 页面
+    if (pageInfo.type !== 'app' && pageInfo.type !== 'sub' && pageInfo.type !== 'bundle') {
+        throw new Error(`暂不支持此页面类型: ${pageInfo.type}`);
+    }
     
     const id = pageInfo.id;
     const apiType = pageInfo.apiType;

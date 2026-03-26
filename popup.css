@@ -306,6 +306,7 @@ body {
     border-radius: 6px;
 }
 
+/* 结果状态样式 */
 .result-status.success {
     background: rgba(74, 222, 128, 0.2);
     color: #4ade80;
@@ -314,6 +315,11 @@ body {
 .result-status.error {
     background: rgba(248, 113, 113, 0.2);
     color: #f87171;
+}
+
+.result-status.warning {
+    background: rgba(249, 115, 22, 0.2);
+    color: #f97316;
 }
 
 .result-detail {
@@ -445,4 +451,18 @@ body::-webkit-scrollbar {
 
 .country-select::-webkit-scrollbar {
     display: none;
+}
+
+.bundle-game-item {
+    transition: all 0.2s ease;
+}
+
+.bundle-game-item:hover {
+    background: rgba(102, 126, 234, 0.2) !important;
+}
+
+.result-detail {
+    max-height: 300px;
+    overflow-y: auto;
+    scrollbar-width: thin;
 }

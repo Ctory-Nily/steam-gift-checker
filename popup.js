@@ -205,6 +205,99 @@ function formatPrice(price, currencyCode) {
     }
 }
 
+// 显示 bundle 检测结果
+function showBundleResultInStatusArea(results, summary, senderSteamCC, recipientSteamCC, senderRate, recipientRate) {
+    const resultArea = document.getElementById('resultArea');
+    const resultContent = document.getElementById('resultContent');
+    
+    // 判断显示状态
+    let statusClass = '';
+    let statusText = '';
+    
+    if (summary.total === 0) {
+        // 没有游戏
+        statusClass = 'error';
+        statusText = '❌ 未找到游戏信息';
+    } else if (summary.error === summary.total) {
+        // 全部获取失败
+        statusClass = 'error';
+        statusText = '❌ 全部游戏获取失败';
+    } else if (summary.canGift === summary.total) {
+        // 全部可以赠送
+        statusClass = 'success';
+        statusText = '✅ 全部游戏都可以赠送！';
+    } else if (summary.canGift > 0 && summary.canGift < summary.total) {
+        // 部分可以赠送
+        statusClass = 'warning';
+        statusText = '⚠️ 部分游戏可以赠送';
+    } else if (summary.canGift === 0 && summary.cannotGift > 0) {
+        // 全部无法赠送
+        statusClass = 'error';
+        statusText = '❌ 全部游戏都无法赠送';
+    } else {
+        statusClass = 'error';
+        statusText = '❌ 无法赠送';
+    }
+    
+    // 生成游戏列表 HTML
+    let gamesHtml = '';
+    for (const game of results) {
+        let gameStatus = '';
+        let gameStatusText = '';
+        let gameStatusColor = '';
+        
+        if (game.error) {
+            gameStatus = '⚠️';
+            gameStatusText = '获取失败';
+            gameStatusColor = '#f97316';
+        } else if (game.canGift) {
+            gameStatus = '✅';
+            gameStatusText = '可赠送';
+            gameStatusColor = '#4ade80';
+        } else {
+            gameStatus = '❌';
+            gameStatusText = '不可赠送';
+            gameStatusColor = '#f87171';
+        }
+        const gameStatusClass = game.canGift ? 'success' : (game.error ? 'warning' : 'error');
+        const priceInfo = game.error ? game.error : 
+            `${formatPrice(game.senderPrice, senderSteamCC)} → ${formatPrice(game.convertedPrice, senderSteamCC)} (${game.priceDiffPercent > 0 ? '' : '+'}${-(Math.floor(game.priceDiffPercent * 10000) / 10000).toFixed(4)}%)`;
+        const priceDifferenceInfo = `${game.priceDiffPercent > 0 ? '' : '+'}${-(Math.floor(game.priceDiffPercent * 10000) / 10000).toFixed(4)}%`
+
+        gamesHtml += `
+            <div class="bundle-game-item" style="margin-bottom: 10px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: bold;">${gameStatus} ${game.name}</span>
+                    <span style="color: ${game.canGift ? '#4ade80' : (game.error ? '#f97316' : '#f87171')};">${game.canGift ? `${priceDifferenceInfo} 可赠送` : (game.error ? '获取失败' : `${priceDifferenceInfo} 不可赠送`)}</span>
+                </div>
+                <div style="font-size: 11px; color: #aaa; margin-top: 4px;">
+                    赠送方: ${formatPrice(game.senderPrice, senderSteamCC)} |  
+                    收礼方: ${formatPrice(game.recipientPrice, recipientSteamCC)} |
+                    换算后: ${formatPrice(game.convertedPrice, senderSteamCC)}
+                </div>
+                ${game.error ? `<div style="font-size: 11px; color: #f97316;">错误: ${game.error}</div>` : ''}
+            </div>
+        `;
+    }
+    
+    resultContent.innerHTML = `
+        <div class="result-status ${statusClass}">${statusText}</div>
+        <div style="margin-top: 8px; padding: 6px; background: rgba(0,0,0,0.3); border-radius: 6px;">
+            <div style="display: flex; justify-content: space-between;">
+                <span>📦 包内游戏: ${summary.total}</span>
+                <span style="color: #4ade80;">✅ ${summary.canGift}</span>
+                <span style="color: #f87171;">❌ ${summary.cannotGift}</span>
+                ${summary.error > 0 ? `<span style="color: #f97316;">⚠️ ${summary.error}</span>` : ''}
+            </div>
+        </div>
+        <div class="result-detail" style="margin-top: 12px; max-height: 300px; overflow-y: auto;">
+            ${gamesHtml}
+        </div>
+    `;
+    
+    resultArea.style.display = 'block';
+}
+
 // 在状态区域显示检测结果
 function showResultInStatusArea(canGift, response, senderSteamCC, recipientSteamCC, senderRate, recipientRate) {
     const resultArea = document.getElementById('resultArea');
@@ -1132,11 +1225,11 @@ document.getElementById('checkBtn').addEventListener('click', async () => {
         return;
     }
     
-    // 检查是否为 bundle（不支持）
-    if (tab.url.includes('/bundle/')) {
-        showError('捆绑包暂不支持检测');
-        return;
-    }
+    // // 检查是否为 bundle（不支持）
+    // if (tab.url.includes('/bundle/')) {
+    //     showError('捆绑包暂不支持检测');
+    //     return;
+    // }
     
     showLoading();
     
@@ -1176,8 +1269,21 @@ document.getElementById('checkBtn').addEventListener('click', async () => {
             }
             
             if (response && !response.error) {
-                const canGift = response.canGift;
-                showResultInStatusArea(canGift, response, senderSteamCC, recipientSteamCC, senderRate, recipientRate);
+                // 判断是否是 bundle 结果
+                if (response.type === 'bundle') {
+                    showBundleResultInStatusArea(
+                        response.results, 
+                        response.summary,
+                        senderSteamCC, 
+                        recipientSteamCC, 
+                        senderRate, 
+                        recipientRate
+                    );
+                } else {
+                    // 普通 app/sub 结果
+                    const canGift = response.canGift;
+                    showResultInStatusArea(canGift, response, senderSteamCC, recipientSteamCC, senderRate, recipientRate);
+                }
             } else {
                 showError(response?.error || '无法获取价格数据，请稍后重试');
                 hideResultInStatusArea();
