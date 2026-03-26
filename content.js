@@ -25,6 +25,12 @@ function getPageInfo() {
     
     // ========== SteamDB 页面 ==========
     if (hostname === 'steamdb.info') {
+        // bundle 页面 - 不支持检测，但可以获取地区
+        const bundleMatch = url.match(/\/bundle\/(\d+)(?:\/|$)/);
+        if (bundleMatch) {
+            return { type: 'bundle', id: bundleMatch[1], error: '捆绑包暂不支持检测', apiType: null, source: 'steamdb' };
+        }
+        
         const appMatch = url.match(/\/app\/(\d+)(?:\/|$)/);
         if (appMatch) {
             return { type: 'app', id: appMatch[1], error: null, apiType: 'app', source: 'steamdb' };
@@ -97,8 +103,15 @@ function getSteamDBCountry() {
         if (currencyBtn) {
             console.log('[Content] 找到货币选择器按钮');
             
-            // 查找货币名称 span
-            const currencySpan = currencyBtn.querySelector('.single-price-name');
+            // 查找货币名称 span（多种可能的选择器）
+            let currencySpan = currencyBtn.querySelector('.single-price-name');
+            if (!currencySpan) {
+                currencySpan = currencyBtn.querySelector('.js-currency-name');
+            }
+            if (!currencySpan) {
+                currencySpan = currencyBtn.querySelector('[class*="currency"]');
+            }
+
             if (currencySpan) {
                 const currencyText = currencySpan.textContent.trim();
                 console.log(`[Content] SteamDB 货币选择器文本: "${currencyText}"`);
