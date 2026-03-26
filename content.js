@@ -274,6 +274,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
     
+    // 刷新当前国家 - 重新从页面获取
+    if (request.action === 'refreshCountry') {
+        console.log('[Content] 收到刷新国家/地区请求');
+        // 清除可能的缓存，重新获取
+        const countryCode = getCurrentSteamCountry();
+        console.log('[Content] 刷新后国家/地区:', countryCode);
+        sendResponse({ success: true, countryCode: countryCode });
+        return true;
+    }
+    
     // 获取当前国家
     if (request.action === 'getCurrentCountry') {
         const countryCode = getCurrentSteamCountry();
@@ -282,25 +292,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
     
-    // 刷新当前国家
-    if (request.action === 'refreshCountry') {
-        const countryCode = getCurrentSteamCountry();
-        console.log('[Content] 刷新后国家/地区:', countryCode);
-        sendResponse({ success: true, countryCode: countryCode });
-        return true;
-    }
-    
     // ping 测试
     if (request.action === 'ping') {
-        console.log('[Content] 响应 ping, 页面:', window.location.href);
-        const pageInfo = getPageInfo();
-        sendResponse({ 
-            success: true, 
-            message: 'pong', 
-            url: window.location.href, 
-            source: pageInfo.source,
-            type: pageInfo.type
-        });
+        console.log('[Content] 响应 ping');
+        sendResponse({ success: true, message: 'pong', url: window.location.href });
         return true;
     }
     

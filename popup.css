@@ -22,6 +22,7 @@ body {
     margin-bottom: 20px;
     padding-bottom: 12px;
     border-bottom: 1px solid rgba(255,255,255,0.1);
+    justify-content: center;
 }
 
 .logo {
@@ -83,25 +84,39 @@ body {
     color: #888;
 }
 
+/* 下拉框默认样式 - 收起状态 */
 .country-select {
     width: 100%;
-    padding: 8px;
+    padding: 10px 12px;
     background: #2d2d3a;
     border: 1px solid rgba(255,255,255,0.2);
     border-radius: 8px;
     color: #ffffff;
-    font-size: 13px;
+    font-size: 14px;
     cursor: pointer;
+    transition: all 0.3s ease;
     height: auto;
-    min-height: 200px;
-    max-height: 240px;
+    min-height: 40px;
 }
 
+/* 展开状态 - 显示多行 */
+.country-select.expanded {
+    min-height: 40px;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+/* 下拉框选项样式 */
 .country-select option {
     background: #2d2d3a;
     color: #ffffff;
     padding: 8px 12px;
     cursor: pointer;
+}
+
+/* 展开时显示选项 */
+.country-select.expanded option {
+    display: block;
 }
 
 .country-select option:hover {
@@ -313,13 +328,16 @@ body {
     word-break: break-all;
 }
 
-/* 检测按钮 */
+/* 检测按钮置顶 */
 .check-button {
+    position: sticky;
+    top: 0;
+    z-index: 100;
     margin-top: 0;
     margin-bottom: 12px;
 }
 
-/* 错误提示容器 */
+/* 错误提示不悬浮 */
 .error-container {
     margin: 12px 0;
     animation: slideIn 0.3s ease;
@@ -371,7 +389,7 @@ body {
     transform: scale(1.05);
 }
 
-/* 状态显示区域 */
+/* 状态区域不悬浮 */
 .status-area {
     background: rgba(0, 0, 0, 0.3);
     border-radius: 8px;
@@ -385,3 +403,24 @@ body {
 .content {
     margin-top: 0;
 }
+
+.check-button {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* .status-area {
+    position: sticky;
+    top: 52px;  
+    z-index: 99;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+}
+
+.error-container {
+    position: sticky;
+    top: 172px;  
+    z-index: 98;
+} */

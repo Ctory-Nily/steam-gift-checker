@@ -5,7 +5,8 @@ let exchangeRates = {};
 let allCountries = [];
 let senderFilterTerm = '';
 let recipientFilterTerm = '';
-let isLoading = false;  // 添加加载状态标志
+let isLoading = false;
+let isInitialized = false;  
 
 // ========== 辅助函数 ==========
 
@@ -272,49 +273,67 @@ function hideLoading() {
     btn.innerHTML = '<span>🔍</span> 检测该游戏';
 }
 
+// 保存选择的国家
 function saveCountries() {
-    const sender = document.getElementById('senderCountry').value;
-    const recipient = document.getElementById('recipientCountry').value;
-    if (sender && recipient) {
-        chrome.storage.local.set({ 
-            senderCountry: sender, 
-            recipientCountry: recipient
-        });
-        updateStatusDisplay(true);  // 静默更新，不触发保存循环
+    const sender = document.getElementById('senderCountry').getAttribute('data-value') || '';
+    const recipient = document.getElementById('recipientCountry').getAttribute('data-value') || '';
+    
+    const toSave = {};
+    if (sender && allCountries.some(c => c.key === sender)) {
+        toSave.senderCountry = sender;
     }
+    if (recipient && allCountries.some(c => c.key === recipient)) {
+        toSave.recipientCountry = recipient;
+    }
+    
+    chrome.storage.local.set(toSave);
+    console.log('保存国家/地区:', toSave);
 }
 
+// 加载保存的国家
 function loadSavedCountries() {
-    chrome.storage.local.get(['senderCountry', 'recipientCountry'], (result) => {
-        if (result.senderCountry) {
-            document.getElementById('senderCountry').value = result.senderCountry;
-        }
-        if (result.recipientCountry) {
-            document.getElementById('recipientCountry').value = result.recipientCountry;
-        }
-        updateStatusDisplay();
+    return new Promise((resolve) => {
+        chrome.storage.local.get(['senderCountry', 'recipientCountry'], (result) => {
+            const senderSelect = document.getElementById('senderCountry');
+            const recipientSelect = document.getElementById('recipientCountry');
+            
+            // 设置发送方
+            if (result.senderCountry && allCountries.some(c => c.key === result.senderCountry)) {
+                senderSelect.setAttribute('data-value', result.senderCountry);
+                senderSelect.value = result.senderCountry;
+            } else {
+                senderSelect.setAttribute('data-value', '');
+                senderSelect.value = '';
+            }
+            
+            // 设置接收方
+            if (result.recipientCountry && allCountries.some(c => c.key === result.recipientCountry)) {
+                recipientSelect.setAttribute('data-value', result.recipientCountry);
+                recipientSelect.value = result.recipientCountry;
+            } else {
+                recipientSelect.setAttribute('data-value', '');
+                recipientSelect.value = '';
+            }
+            
+            // 渲染收起状态
+            renderSelect(senderSelect, '', false);
+            renderSelect(recipientSelect, '', false);
+            updateStatusDisplay();
+            resolve();
+        });
     });
 }
 
 // 更新状态显示区域
-function updateStatusDisplay(silent = false) {
+function updateStatusDisplay() {
     const senderSteamCC = document.getElementById('senderCountry').value;
     const recipientSteamCC = document.getElementById('recipientCountry').value;
     
-    const senderCountry = allCountries.find(c => c.key === senderSteamCC);
-    const recipientCountry = allCountries.find(c => c.key === recipientSteamCC);
+    const senderCountry = senderSteamCC ? allCountries.find(c => c.key === senderSteamCC) : null;
+    const recipientCountry = recipientSteamCC ? allCountries.find(c => c.key === recipientSteamCC) : null;
     
-    if (senderCountry) {
-        document.getElementById('senderDisplay').textContent = `${senderCountry.name} (${senderCountry.key.toUpperCase()}) - ${senderCountry.code}`;
-    } else {
-        document.getElementById('senderDisplay').textContent = '未选择';
-    }
-    
-    if (recipientCountry) {
-        document.getElementById('recipientDisplay').textContent = `${recipientCountry.name} (${recipientCountry.key.toUpperCase()}) - ${recipientCountry.code}`;
-    } else {
-        document.getElementById('recipientDisplay').textContent = '未选择';
-    }
+    document.getElementById('senderDisplay').textContent = senderCountry ? `${senderCountry.name} (${senderCountry.key.toUpperCase()}) - ${senderCountry.code}` : '未选择';
+    document.getElementById('recipientDisplay').textContent = recipientCountry ? `${recipientCountry.name} (${recipientCountry.key.toUpperCase()}) - ${recipientCountry.code}` : '未选择';
 }
 
 // 根据 steamCC 获取国家名称
@@ -366,86 +385,67 @@ async function getCurrentSteamCountry(refresh = false) {
     });
 }
 
-// 刷新并显示当前国家（用户点击刷新按钮时调用）
-async function refreshCurrentCountry() {
-    console.log('[Popup] 开始刷新当前国家/地区');
-    
-    // 如果正在加载，等待
-    if (isLoading) {
-        console.log('[Popup] 正在加载中，稍后重试');
-        showError('正在加载中，请稍后重试');
-        return;
-    }
-    
+// 刷新并显示当前国家
+async function refreshCurrentCountry(silent = false) {
     const currentCountryText = document.getElementById('currentCountryText');
     currentCountryText.textContent = '获取中...';
     
+    // 清空搜索框
+    const senderSearch = document.getElementById('senderSearch');
+    const recipientSearch = document.getElementById('recipientSearch');
+    if (senderSearch) senderSearch.value = '';
+    if (recipientSearch) recipientSearch.value = '';
+    senderFilterTerm = '';
+    recipientFilterTerm = '';
+    
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) {
-        currentCountryText.textContent = '无法获取，请刷新页面';
-        showError('没有活动标签页，请先打开 Steam 或 SteamDB 页面');
-        return;
-    }
-    
-    console.log(`[Popup] 当前标签页: ${tab.url}`);
-    
-    const supportedDomains = ['store.steampowered.com', 'steamdb.info'];
-    const isSupported = supportedDomains.some(domain => tab.url.includes(domain));
-    
-    if (!isSupported) {
-        currentCountryText.textContent = '不支持的页面';
-        showError('请在 Steam 商店页面或 SteamDB 页面使用此功能');
+        currentCountryText.textContent = '无法获取';
+        if (!silent) showError('没有活动标签页');
         return;
     }
     
     chrome.tabs.sendMessage(tab.id, { action: 'ping' }, (pingResponse) => {
         if (chrome.runtime.lastError) {
-            console.error('[Popup] ping 失败:', chrome.runtime.lastError);
-            currentCountryText.textContent = '无法连接，请刷新页面';
-            showError('无法连接到页面，请刷新页面后重试');
+            currentCountryText.textContent = '无法连接';
+            if (!silent) showError('无法连接到页面，请刷新页面后重试');
             return;
         }
         
-        getCurrentSteamCountry(true).then(currentCountry => {
-            console.log('[Popup] 获取到当前国家/地区:', currentCountry);
+        chrome.tabs.sendMessage(tab.id, { action: 'getCurrentCountry' }, (response) => {
+            if (chrome.runtime.lastError || !response?.success || !response.countryCode) {
+                currentCountryText.textContent = '获取失败';
+                if (!silent) showError('获取当前国家/地区失败');
+                return;
+            }
             
-            // 清空搜索框
-            document.getElementById('senderSearch').value = '';
-            document.getElementById('recipientSearch').value = '';
-            senderFilterTerm = '';
-            recipientFilterTerm = '';
+            const countryCode = response.countryCode;
+            const countryName = getCountryNameBySteamCC(countryCode);
+            currentCountryText.textContent = `${countryName} (${countryCode.toUpperCase()})`;
             
-            // 重新渲染下拉框
             const senderSelect = document.getElementById('senderCountry');
-            const recipientSelect = document.getElementById('recipientCountry');
-            renderSelect(senderSelect, '');
-            renderSelect(recipientSelect, '');
+            const currentSender = senderSelect.getAttribute('data-value') || senderSelect.value;
             
-            if (currentCountry) {
-                const countryName = getCountryNameBySteamCC(currentCountry);
-                currentCountryText.textContent = `${countryName} (${currentCountry.toUpperCase()})`;
-                
-                const countryExists = allCountries.some(c => c.key === currentCountry);
-                if (countryExists) {
-                    const currentSender = senderSelect.value;
-                    
-                    if (currentSender === currentCountry) {
-                        console.log(`[Popup] 当前赠送方已是 ${countryName}，无需更改`);
-                        updateStatusDisplay(true);
-                    } else {
-                        senderSelect.value = currentCountry;
-                        updateStatusDisplay(true);
-                        saveCountries();
-                        showError(`已将赠送方设置为 ${countryName} (${currentCountry.toUpperCase()})`, true);
-                        console.log(`[Popup] 自动设置赠送方为: ${currentCountry}`);
-                    }
+            if (allCountries.some(c => c.key === countryCode)) {
+                if (currentSender === countryCode) {
+                    // 相同地区，静默更新
+                    senderSelect.setAttribute('data-value', countryCode);
+                    senderSelect.value = countryCode;
+                    renderSelect(senderSelect, '', false);
+                    updateStatusDisplay();
                 } else {
-                    currentCountryText.textContent = `${currentCountry.toUpperCase()} (不支持)`;
-                    showError(`当前地区 ${currentCountry.toUpperCase()} 不在支持列表中，请手动选择赠送方国家/地区`);
+                    // 不同地区，更新并显示提示
+                    senderSelect.setAttribute('data-value', countryCode);
+                    senderSelect.value = countryCode;
+                    renderSelect(senderSelect, '', false);
+                    saveCountries();
+                    updateStatusDisplay();
+                    if (!silent) {
+                        showError(`已将赠送方设置为 ${countryName} (${countryCode.toUpperCase()})`, true);
+                    }
                 }
-            } else {
-                currentCountryText.textContent = '无法获取，请刷新页面';
-                showError('无法获取当前国家/地区，请确保在 Steam 商店页面或 SteamDB 页面');
+            } else if (!silent) {
+                showError(`当前国家/地区 ${countryCode.toUpperCase()} 不在支持列表中`);
             }
         });
     });
@@ -455,6 +455,7 @@ function getSearchKeyword(inputElement) {
     return inputElement.value.trim().toLowerCase();
 }
 
+// 过滤国家列表
 function filterCountries(searchTerm) {
     if (!searchTerm) return allCountries;
     const term = searchTerm.toLowerCase();
@@ -464,45 +465,97 @@ function filterCountries(searchTerm) {
     );
 }
 
-// 渲染下拉框 - 根据搜索词过滤
-function renderSelect(selectElement, filterTerm) {
-    const filtered = filterCountries(filterTerm);
-    const currentValue = selectElement.value;
+// 渲染下拉框
+function renderSelect(selectElement, filterTerm, isExpanded) {
+    const currentValue = selectElement.getAttribute('data-value') || selectElement.value;
+    let filtered = filterCountries(filterTerm);
     
     selectElement.innerHTML = '';
     
-    for (const country of filtered) {
-        const displayName = `${country.name} (${country.key.toUpperCase()}) - ${country.code}`;
-        const option = new Option(displayName, country.key);
-        selectElement.add(option);
+    if (isExpanded) {
+        // 展开状态
+        // 判断是否有搜索结果
+        const hasResults = filtered.length > 0;
+        
+        if (!hasResults) {
+            // 搜索不到内容时，显示"请选择国家/地区"选项
+            const noResultOption = new Option('请选择国家/地区', '');
+            selectElement.add(noResultOption);
+        } else {
+            // 有搜索结果
+            if (!filterTerm) {
+                // 无搜索词：显示"请选择国家/地区"
+                const placeholderOption = new Option('请选择国家/地区', '');
+                selectElement.add(placeholderOption);
+            }
+            
+            // 添加所有国家选项
+            for (const country of filtered) {
+                const option = new Option(`${country.name} (${country.key.toUpperCase()}) - ${country.code}`, country.key);
+                selectElement.add(option);
+            }
+        }
+        
+        // 设置选中的值
+        if (currentValue && filtered.some(c => c.key === currentValue)) {
+            // 有当前值且在列表中，保持选中
+            selectElement.value = currentValue;
+        } else if (filterTerm && filtered.length > 0) {
+            // 有搜索词且有结果，自动选中第一个
+            selectElement.value = filtered[0].key;
+            selectElement.setAttribute('data-value', filtered[0].key);
+        } else {
+            selectElement.value = '';
+        }
+    } else {
+        // 收起状态：只显示当前选中的国家或占位符
+        if (currentValue && allCountries.some(c => c.key === currentValue)) {
+            const selectedCountry = allCountries.find(c => c.key === currentValue);
+            const displayText = `${selectedCountry.name} (${selectedCountry.key.toUpperCase()}) - ${selectedCountry.code}`;
+            const option = new Option(displayText, currentValue);
+            selectElement.add(option);
+            selectElement.value = currentValue;
+        } else {
+            const option = new Option('请选择国家/地区', '');
+            selectElement.add(option);
+            selectElement.value = '';
+        }
     }
     
-    if (filtered.some(c => c.key === currentValue)) {
-        selectElement.value = currentValue;
-    } else if (filtered.length > 0) {
-        selectElement.value = filtered[0].key;
-    }
-    
-    updateStatusDisplay(true);  // 静默更新
+    selectElement.setAttribute('data-value', selectElement.value);
+    updateStatusDisplay();
 }
 
-// 更新发送方下拉框
+// 更新发送方下拉框 - 搜索时实时更新
 function updateSenderSelect() {
     const searchInput = document.getElementById('senderSearch');
-    senderFilterTerm = searchInput.value;
+    const searchTerm = searchInput.value;
+    senderFilterTerm = searchTerm;
+    
     const senderSelect = document.getElementById('senderCountry');
-    renderSelect(senderSelect, senderFilterTerm);
+    const isExpanded = senderSelect.classList.contains('expanded');
+    
+    if (isExpanded) {
+        // 展开状态：重新渲染过滤后的选项
+        renderSelect(senderSelect, senderFilterTerm, true);
+    }
 }
 
 // 更新接收方下拉框
 function updateRecipientSelect() {
     const searchInput = document.getElementById('recipientSearch');
-    recipientFilterTerm = searchInput.value;
+    const searchTerm = searchInput.value;
+    recipientFilterTerm = searchTerm;
+    
     const recipientSelect = document.getElementById('recipientCountry');
-    renderSelect(recipientSelect, recipientFilterTerm);
+    const isExpanded = recipientSelect.classList.contains('expanded');
+    
+    if (isExpanded) {
+        renderSelect(recipientSelect, recipientFilterTerm, true);
+    }
 }
 
-// 初始化下拉框（显示全部）
+// 填充下拉框（初始化时调用）
 function populateCountrySelects() {
     const sortedCountries = [...allCountries].sort((a, b) => a.name.localeCompare(b.name));
     allCountries = sortedCountries;
@@ -513,66 +566,247 @@ function populateCountrySelects() {
     senderFilterTerm = '';
     recipientFilterTerm = '';
     
-    // 渲染下拉框
     const senderSelect = document.getElementById('senderCountry');
     const recipientSelect = document.getElementById('recipientCountry');
-    renderSelect(senderSelect, '');
-    renderSelect(recipientSelect, '');
+    
+    senderSelect.classList.remove('expanded');
+    recipientSelect.classList.remove('expanded');
+    
+    // 加载保存的值
+    chrome.storage.local.get(['senderCountry', 'recipientCountry'], (saved) => {
+        // 设置发送方
+        if (saved.senderCountry && allCountries.some(c => c.key === saved.senderCountry)) {
+            senderSelect.value = saved.senderCountry;
+        } else {
+            senderSelect.value = '';
+        }
+        
+        // 设置接收方
+        if (saved.recipientCountry && allCountries.some(c => c.key === saved.recipientCountry)) {
+            recipientSelect.value = saved.recipientCountry;
+        } else {
+            recipientSelect.value = '';
+        }
+        
+        // 更新显示
+        updateSelectDisplay(senderSelect);
+        updateSelectDisplay(recipientSelect);
+    });
 }
 
-// 对调国家
-function swapCountries() {
-    console.log('=== 对调国家/地区开始 ===');
+// 设置发送方国家（用于自动定位和刷新）
+function setSenderCountry(steamCC) {
+    const senderSelect = document.getElementById('senderCountry');
+    const countryExists = allCountries.some(c => c.key === steamCC);
     
+    if (countryExists) {
+        senderSelect.value = steamCC;
+        // 重新渲染为收起状态
+        renderSelect(senderSelect, '', false);
+        saveCountries();
+        updateStatusDisplay(true);
+        return true;
+    }
+    return false;
+}
+
+// 初始化下拉框行为
+function initSelectBehavior() {
     const senderSelect = document.getElementById('senderCountry');
     const recipientSelect = document.getElementById('recipientCountry');
     const senderSearch = document.getElementById('senderSearch');
     const recipientSearch = document.getElementById('recipientSearch');
     
-    // 获取当前选中的值
-    const senderValue = senderSelect.value;
-    const recipientValue = recipientSelect.value;
+    // 点击下拉框时展开/收起 - 使用 click 事件
+    senderSelect.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        if (senderSelect.classList.contains('expanded')) {
+            senderSelect.classList.remove('expanded');
+            renderSelect(senderSelect, '', false);
+        } else {
+            closeAllSelects();
+            senderSelect.classList.add('expanded');
+            renderSelect(senderSelect, senderFilterTerm, true);
+        }
+    });
     
-    console.log(`对调前 - 赠送方: ${senderValue}, 收礼方: ${recipientValue}`);
+    recipientSelect.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        if (recipientSelect.classList.contains('expanded')) {
+            recipientSelect.classList.remove('expanded');
+            renderSelect(recipientSelect, '', false);
+        } else {
+            closeAllSelects();
+            recipientSelect.classList.add('expanded');
+            renderSelect(recipientSelect, recipientFilterTerm, true);
+        }
+    });
     
-    if (!senderValue || !recipientValue) {
+    // 点击搜索框时展开
+    senderSearch.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllSelects();
+        senderSelect.classList.add('expanded');
+        renderSelect(senderSelect, senderFilterTerm, true);
+    });
+    
+    recipientSearch.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeAllSelects();
+        recipientSelect.classList.add('expanded');
+        renderSelect(recipientSelect, recipientFilterTerm, true);
+    });
+    
+    // 搜索框输入时实时过滤
+    senderSearch.addEventListener('input', () => {
+        senderFilterTerm = senderSearch.value;
+        if (senderSelect.classList.contains('expanded')) {
+            renderSelect(senderSelect, senderFilterTerm, true);
+        }
+    });
+    
+    recipientSearch.addEventListener('input', () => {
+        recipientFilterTerm = recipientSearch.value;
+        if (recipientSelect.classList.contains('expanded')) {
+            renderSelect(recipientSelect, recipientFilterTerm, true);
+        }
+    });
+    
+    // 选择选项后保存并关闭
+    senderSelect.addEventListener('change', () => {
+        const selectedValue = senderSelect.value;
+        if (selectedValue && selectedValue !== '') {
+            senderSelect.setAttribute('data-value', selectedValue);
+            saveCountries();
+        }
+        senderSelect.classList.remove('expanded');
+        renderSelect(senderSelect, '', false);
+    });
+    
+    recipientSelect.addEventListener('change', () => {
+        const selectedValue = recipientSelect.value;
+        if (selectedValue && selectedValue !== '') {
+            recipientSelect.setAttribute('data-value', selectedValue);
+            saveCountries();
+        }
+        recipientSelect.classList.remove('expanded');
+        renderSelect(recipientSelect, '', false);
+    });
+    
+    // 点击其他地方关闭
+    document.addEventListener('click', (e) => {
+        if (!senderSelect.contains(e.target) && !senderSearch.contains(e.target) &&
+            !recipientSelect.contains(e.target) && !recipientSearch.contains(e.target)) {
+            if (senderSelect.classList.contains('expanded') || recipientSelect.classList.contains('expanded')) {
+                closeAllSelects();
+                renderSelect(senderSelect, '', false);
+                renderSelect(recipientSelect, '', false);
+            }
+        }
+    });
+}
+
+// 关闭所有下拉框
+function closeAllSelects() {
+    const senderSelect = document.getElementById('senderCountry');
+    const recipientSelect = document.getElementById('recipientCountry');
+    
+    if (senderSelect) {
+        senderSelect.classList.remove('expanded');
+        // 关闭时更新显示
+        updateSelectDisplay(senderSelect);
+    }
+    if (recipientSelect) {
+        recipientSelect.classList.remove('expanded');
+        updateSelectDisplay(recipientSelect);
+    }
+}
+
+// 对调国家
+function swapCountries() {
+    const senderSelect = document.getElementById('senderCountry');
+    const recipientSelect = document.getElementById('recipientCountry');
+    const senderSearch = document.getElementById('senderSearch');
+    const recipientSearch = document.getElementById('recipientSearch');
+    
+    const senderValue = senderSelect.getAttribute('data-value') || senderSelect.value;
+    const recipientValue = recipientSelect.getAttribute('data-value') || recipientSelect.value;
+    
+    console.log('对调前 - 赠送方:', senderValue, '收礼方:', recipientValue);
+    
+    if (!senderValue || !recipientValue || senderValue === '' || recipientValue === '') {
         showError('请先选择赠送方和收礼方国家/地区');
         return;
     }
     
-    // 保存当前搜索词
+    // 保存搜索框内容
     const senderSearchTerm = senderSearch.value;
     const recipientSearchTerm = recipientSearch.value;
     
-    // 交换搜索词
+    // 交换值
+    senderSelect.setAttribute('data-value', recipientValue);
+    recipientSelect.setAttribute('data-value', senderValue);
+    
+    // 更新 select 元素的值
+    senderSelect.value = recipientValue;
+    recipientSelect.value = senderValue;
+    
+    // 交换搜索框
     senderSearch.value = recipientSearchTerm;
     recipientSearch.value = senderSearchTerm;
     senderFilterTerm = recipientSearchTerm;
     recipientFilterTerm = senderSearchTerm;
     
-    // 重新渲染下拉框（应用交换后的搜索词）
-    renderSelect(senderSelect, senderFilterTerm);
-    renderSelect(recipientSelect, recipientFilterTerm);
+    // 关闭展开
+    senderSelect.classList.remove('expanded');
+    recipientSelect.classList.remove('expanded');
     
-    // 交换选中的值
-    senderSelect.value = recipientValue;
-    recipientSelect.value = senderValue;
+    // 重新渲染收起状态
+    renderSelect(senderSelect, '', false);
+    renderSelect(recipientSelect, '', false);
     
-    // 验证设置是否成功
-    console.log(`对调后 - 赠送方: ${senderSelect.value}, 收礼方: ${recipientSelect.value}`);
-    
-    // 保存设置
+    // 保存
     saveCountries();
-    
-    // 隐藏检测结果
     hideResultInStatusArea();
     
-    // 显示成功提示
-    const senderCountry = allCountries.find(c => c.key === senderSelect.value);
-    const recipientCountry = allCountries.find(c => c.key === recipientSelect.value);
-    // showError(`已对调: ${senderCountry?.name} ↔ ${recipientCountry?.name}`, true);
+    const newSender = allCountries.find(c => c.key === recipientValue);
+    const newRecipient = allCountries.find(c => c.key === senderValue);
     
-    console.log('=== 对调国家/地区结束 ===');
+    if (newSender && newRecipient) {
+        showError(`已对调: ${newSender.name} ↔ ${newRecipient.name}`, true);
+    }
+}
+
+// 更新下拉框显示（不重新创建选项）
+function updateSelectDisplay(selectElement) {
+    const currentValue = selectElement.value;
+    
+    if (currentValue && allCountries.some(c => c.key === currentValue)) {
+        const selectedCountry = allCountries.find(c => c.key === currentValue);
+        const displayText = `${selectedCountry.name} (${selectedCountry.key.toUpperCase()}) - ${selectedCountry.code}`;
+        
+        // 更新现有选项的文本
+        if (selectElement.options.length > 0) {
+            selectElement.options[0].text = displayText;
+            selectElement.options[0].value = currentValue;
+        } else {
+            // 如果没有选项，创建新选项
+            const option = new Option(displayText, currentValue);
+            selectElement.add(option);
+        }
+    } else {
+        // 没有选中值，显示占位符
+        if (selectElement.options.length > 0) {
+            selectElement.options[0].text = '请选择国家/地区';
+            selectElement.options[0].value = '';
+        } else {
+            const option = new Option('请选择国家/地区', '');
+            selectElement.add(option);
+        }
+        selectElement.value = '';
+    }
 }
 
 function getCountryConfigBySteamCC(steamCC) {
@@ -582,6 +816,44 @@ function getCountryConfigBySteamCC(steamCC) {
         name: country?.name || steamCC
     };
 }
+
+// 动态计算高度
+function initStickyPositions() {
+    const checkBtn = document.querySelector('.check-button');
+    const statusArea = document.querySelector('.status-area');
+    const errorContainer = document.querySelector('.error-container');
+    
+    if (!checkBtn) return;
+    
+    // 获取按钮高度和 margin
+    const btnHeight = checkBtn.offsetHeight;
+    const btnMarginBottom = parseInt(getComputedStyle(checkBtn).marginBottom) || 0;
+    const btnTotal = btnHeight + btnMarginBottom;
+    
+    // 设置状态区域 top（如果有的话，但状态区域不悬浮，所以不需要设置）
+    if (statusArea) {
+        // 状态区域不设置 sticky，保持自然滚动
+        statusArea.style.position = '';
+        statusArea.style.top = '';
+    }
+    
+    // 错误容器不设置 sticky
+    if (errorContainer) {
+        errorContainer.style.position = '';
+        errorContainer.style.top = '';
+    }
+    
+    console.log('Sticky 位置初始化完成，按钮高度:', btnTotal);
+}
+
+// 页面加载和窗口大小变化时重新计算
+window.addEventListener('load', initStickyPositions);
+window.addEventListener('resize', initStickyPositions);
+
+// 在页面加载完成后调用
+window.addEventListener('load', initStickyPositions);
+// 如果内容变化，重新计算
+window.addEventListener('resize', initStickyPositions);
 
 // ========== 数据加载 ==========
 
@@ -622,13 +894,9 @@ async function fetchExchangeRatesFromAPI() {
     throw new Error('获取汇率失败');
 }
 
+// 加载国家列表
 async function loadCountries() {
-    // 防止重复加载
-    if (isLoading) {
-        console.log('[Popup] 正在加载中，跳过');
-        return;
-    }
-    
+    if (isLoading) return;
     isLoading = true;
     
     try {
@@ -638,7 +906,6 @@ async function loadCountries() {
         try {
             rates = await loadExchangeRates();
         } catch (e) {
-            console.log('从 storage 获取汇率失败，尝试从 API 获取');
             rates = await fetchExchangeRatesFromAPI();
         }
         
@@ -651,34 +918,52 @@ async function loadCountries() {
             symbol: c.symbol
         }));
         
-        populateCountrySelects();
+        allCountries.sort((a, b) => a.name.localeCompare(b.name));
         
-        // 加载保存的国家
-        const savedSender = await new Promise((resolve) => {
-            chrome.storage.local.get(['senderCountry'], (result) => {
-                resolve(result.senderCountry);
-            });
-        });
+        // 初始化下拉框
+        const senderSelect = document.getElementById('senderCountry');
+        const recipientSelect = document.getElementById('recipientCountry');
         
-        if (savedSender) {
-            loadSavedCountries();
-        } else {
-            // 首次使用，尝试获取当前国家并设置
-            const currentCountry = await getCurrentSteamCountry(false);
-            if (currentCountry) {
-                const countryExists = allCountries.some(c => c.key === currentCountry);
-                if (countryExists) {
-                    document.getElementById('senderCountry').value = currentCountry;
-                    saveCountries();
-                    console.log(`首次使用，自动设置赠送方为: ${currentCountry}`);
-                }
-            }
+        senderSelect.classList.remove('expanded');
+        recipientSelect.classList.remove('expanded');
+        
+        // 加载保存的值
+        await loadSavedCountries();
+        
+        // 初始化行为（只初始化一次）
+        if (!isInitialized) {
+            initSelectBehavior();
+            isInitialized = true;
         }
         
-        // 显示当前国家（不自动选择）
-        await displayCurrentCountryOnly();
+        // 显示当前地区时使用静默模式
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab) {
+            chrome.tabs.sendMessage(tab.id, { action: 'getCurrentCountry' }, (response) => {
+                const countryText = document.getElementById('currentCountryText');
+                if (response?.success && response.countryCode) {
+                    const countryName = getCountryNameBySteamCC(response.countryCode);
+                    countryText.textContent = `${countryName} (${response.countryCode.toUpperCase()})`;
+                    
+                    // 静默同步到发送方（相同地区不提示）
+                    const senderSelect = document.getElementById('senderCountry');
+                    const currentSender = senderSelect.getAttribute('data-value') || senderSelect.value;
+                    
+                    if (allCountries.some(c => c.key === response.countryCode) && currentSender !== response.countryCode) {
+                        senderSelect.setAttribute('data-value', response.countryCode);
+                        senderSelect.value = response.countryCode;
+                        renderSelect(senderSelect, '', false);
+                        saveCountries();
+                        updateStatusDisplay();
+                        // 静默模式，不显示提示
+                    }
+                } else {
+                    countryText.textContent = '无法获取';
+                }
+            });
+        }
         
-        console.log('国家/地区列表加载完成，共', allCountries.length, '个国家/地区');
+        console.log('国家/地区列表加载完成，赠送方:', senderSelect.value, '收礼方:', recipientSelect.value);
     } catch (error) {
         console.error('Error loading countries:', error);
         showError('网络错误，无法加载国家/地区列表');
@@ -732,7 +1017,7 @@ document.getElementById('checkBtn').addEventListener('click', async () => {
     console.log(`赠送方: ${senderSteamCC}, 收礼方: ${recipientSteamCC}`);
     
     if (!senderSteamCC || !recipientSteamCC) {
-        showError('请选择赠送方国家/地区和收礼方国家/地区');
+        showError('请选择赠送方国家/地区 和 收礼方国家/地区');
         return;
     }
     
@@ -820,12 +1105,45 @@ document.getElementById('checkBtn').addEventListener('click', async () => {
 
 // ========== 事件监听 ==========
 
-document.getElementById('senderSearch').addEventListener('input', updateSenderSelect);
-document.getElementById('recipientSearch').addEventListener('input', updateRecipientSelect);
+// 搜索框输入事件
+document.getElementById('senderSearch').addEventListener('input', (e) => {
+    senderFilterTerm = e.target.value;
+    const senderSelect = document.getElementById('senderCountry');
+    if (senderSelect.classList.contains('expanded')) {
+        renderSelect(senderSelect, senderFilterTerm, true);
+    }
+});
+
+document.getElementById('recipientSearch').addEventListener('input', (e) => {
+    recipientFilterTerm = e.target.value;
+    const recipientSelect = document.getElementById('recipientCountry');
+    if (recipientSelect.classList.contains('expanded')) {
+        renderSelect(recipientSelect, recipientFilterTerm, true);
+    }
+});
+
+// 点击搜索框时展开
+document.getElementById('senderSearch').addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeAllSelects();
+    const senderSelect = document.getElementById('senderCountry');
+    senderSelect.classList.add('expanded');
+    renderSelect(senderSelect, senderFilterTerm, true);
+});
+
+document.getElementById('recipientSearch').addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeAllSelects();
+    const recipientSelect = document.getElementById('recipientCountry');
+    recipientSelect.classList.add('expanded');
+    renderSelect(recipientSelect, recipientFilterTerm, true);
+});
+
 document.getElementById('swapBtn').addEventListener('click', swapCountries);
 document.getElementById('closeErrorBtn').addEventListener('click', hideError);
+// 刷新按钮点击事件 - 非静默模式
 document.getElementById('refreshCountryBtn').addEventListener('click', () => {
-    refreshCurrentCountry();
+    refreshCurrentCountry(false);  // false = 显示提示
 });
 
 // 监听下拉框变化
