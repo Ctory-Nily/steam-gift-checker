@@ -434,25 +434,7 @@ body {
     pointer-events: none;  /* 让提示不干扰点击 */
 }
 
-/* 隐藏整个弹窗的滚动条 */
-body {
-    -ms-overflow-style: none;
-}
-
-body::-webkit-scrollbar {
-    display: none;
-}
-
-/* 或者只隐藏下拉框的滚动条 */
-.country-select {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-}
-
-.country-select::-webkit-scrollbar {
-    display: none;
-}
-
+/* bundle 部分格式 */
 .bundle-game-item {
     transition: all 0.2s ease;
 }
@@ -464,5 +446,108 @@ body::-webkit-scrollbar {
 .result-detail {
     max-height: 300px;
     overflow-y: auto;
+    margin-top: 8px;
+    padding: 4px;
+}
+
+
+/* ========== 滚动条样式 - 始终显示 ========== */
+
+/* 全局滚动条样式 */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(100, 100, 110, 0.6);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 100, 110, 0.9);
+}
+
+/* Firefox 滚动条样式 */
+* {
+    scrollbar-width: none;
+}
+
+/* ========== 弹窗 body 滚动条 ========== */
+body {
+    overflow-y: none;
+}
+
+/* ========== 下拉框滚动条 ========== */
+.country-select {
     scrollbar-width: thin;
+    scrollbar-color: rgba(100, 100, 110, 0.6) rgba(0, 0, 0, 0.2);
+}
+
+.country-select::-webkit-scrollbar {
+    width: 8px;
+}
+
+.country-select::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+.country-select::-webkit-scrollbar-thumb {
+    background: rgba(100, 100, 110, 0.6);
+    border-radius: 10px;
+}
+
+.country-select::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 100, 110, 0.9);
+}
+
+/* ========== bundle 结果列表滚动条 ========== */
+/* result-detail 是真正的滚动容器 */
+.result-detail {
+    max-height: 300px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(100, 100, 110, 0.6) rgba(0, 0, 0, 0.2);
+}
+
+.result-detail::-webkit-scrollbar {
+    width: 8px;
+}
+
+.result-detail::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+.result-detail::-webkit-scrollbar-thumb {
+    background: rgba(100, 100, 110, 0.6);
+    border-radius: 10px;
+}
+
+.result-detail::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 100, 110, 0.9);
+}
+
+/* ========== #resultContent 不滚动 ========== */
+#resultContent {
+    overflow: visible;
+    max-height: none;
+}
+
+/* 结果区域整体 */
+.result-area {
+    margin-top: 10px;
+    padding-top: 10px;
+}
+
+.result-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin-bottom: 10px;
 }

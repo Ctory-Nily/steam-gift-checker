@@ -209,7 +209,10 @@ function formatPrice(price, currencyCode) {
 function showBundleResultInStatusArea(results, summary, senderSteamCC, recipientSteamCC, senderRate, recipientRate) {
     const resultArea = document.getElementById('resultArea');
     const resultContent = document.getElementById('resultContent');
-    
+
+    // 确保结果内容有正确的类名和样式
+    resultContent.classList.add('result-detail');
+
     // 判断显示状态
     let statusClass = '';
     let statusText = '';
@@ -290,7 +293,7 @@ function showBundleResultInStatusArea(results, summary, senderSteamCC, recipient
                 ${summary.error > 0 ? `<span style="color: #f97316;">⚠️ ${summary.error}</span>` : ''}
             </div>
         </div>
-        <div class="result-detail" style="margin-top: 12px; max-height: 300px; overflow-y: auto;">
+        <div class="result-detail">
             ${gamesHtml}
         </div>
     `;
